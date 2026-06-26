@@ -1,0 +1,1535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sai Marketing — Stock Command Centre</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Fraunces:ital,wght@0,300;0,600;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink:       #1c1c1e;
+    --ink-soft:  #48484a;
+    --ink-mute:  #8e8e93;
+    --bg:        #f5f2ee;
+    --surface:   #ffffff;
+    --border:    #e5e0d8;
+    --sage:      #3d6b52;
+    --sage-l:    #e8f0eb;
+    --terra:     #b55a30;
+    --terra-l:   #f5e8e1;
+    --amber:     #c8882a;
+    --amber-l:   #fdf3e0;
+    --maroon:    #7b2d2d;
+    --maroon-l:  #f5e5e5;
+    --slate:     #3a4a5c;
+    --slate-l:   #e8ecf0;
+    --gold:      #d4a843;
+    --gold-l:    #fdf7e6;
+    --r: 12px;
+    --r-sm: 8px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+    --shadow-hover: 0 4px 20px rgba(0,0,0,0.10);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    min-height: 100vh;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    background: var(--ink);
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 56px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header-brand {
+    font-family: 'Fraunces', serif;
+    font-weight: 300;
+    font-size: 18px;
+    color: #fff;
+    letter-spacing: 0.02em;
+  }
+  .header-brand span { color: var(--terra); font-style: italic; }
+  .header-right { display: flex; align-items: center; gap: 16px; }
+  .last-refresh {
+    font-size: 11px;
+    color: #888;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .refresh-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #4caf50;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%,100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+  .refresh-btn {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: #fff;
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    transition: background 0.2s;
+  }
+  .refresh-btn:hover { background: rgba(255,255,255,0.18); }
+
+  /* ── NAV TABS ── */
+  .nav {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .nav::-webkit-scrollbar { display: none; }
+  .nav-tab {
+    padding: 14px 18px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink-mute);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    user-select: none;
+  }
+  .nav-tab:hover { color: var(--ink); }
+  .nav-tab.active { color: var(--ink); border-bottom-color: var(--terra); }
+  .nav-tab .tab-icon { font-size: 15px; }
+
+  /* ── MAIN ── */
+  .main { padding: 24px; max-width: 1400px; margin: 0 auto; }
+
+  /* ── LOADING ── */
+  .loading-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 60vh;
+    gap: 16px;
+  }
+  .spinner {
+    width: 36px; height: 36px;
+    border: 3px solid var(--border);
+    border-top-color: var(--terra);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { color: var(--ink-mute); font-size: 13px; }
+
+  /* ── ERROR ── */
+  .error-box {
+    background: var(--maroon-l);
+    border: 1px solid #e5b8b8;
+    border-radius: var(--r);
+    padding: 20px;
+    color: var(--maroon);
+    font-size: 13px;
+    margin: 24px 0;
+  }
+
+  /* ── SECTION HEADER ── */
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .section-title {
+    font-family: 'Fraunces', serif;
+    font-weight: 300;
+    font-size: 22px;
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .section-sub { font-size: 12px; color: var(--ink-mute); font-family: 'DM Sans', sans-serif; font-weight: 400; }
+
+  /* ── KPI CARDS ── */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .kpi-card {
+    background: var(--surface);
+    border-radius: var(--r);
+    padding: 18px 20px;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+  .kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+  }
+  .kpi-card.sage::before   { background: var(--sage); }
+  .kpi-card.terra::before  { background: var(--terra); }
+  .kpi-card.amber::before  { background: var(--amber); }
+  .kpi-card.maroon::before { background: var(--maroon); }
+  .kpi-card.slate::before  { background: var(--slate); }
+  .kpi-card.gold::before   { background: var(--gold); }
+
+  .kpi-icon { font-size: 22px; margin-bottom: 8px; }
+  .kpi-label { font-size: 11px; color: var(--ink-mute); font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+  .kpi-value { font-size: 26px; font-weight: 600; line-height: 1.1; color: var(--ink); }
+  .kpi-sub { font-size: 11px; color: var(--ink-mute); margin-top: 4px; }
+
+  /* ── GODOWN FILTER PILLS ── */
+  .godown-pills {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+  .godown-pill {
+    padding: 8px 16px;
+    border-radius: 100px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1.5px solid var(--border);
+    background: var(--surface);
+    color: var(--ink-soft);
+    transition: all 0.18s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .godown-pill:hover { border-color: var(--ink-soft); }
+  .godown-pill.active {
+    background: var(--ink);
+    color: #fff;
+    border-color: var(--ink);
+  }
+  .godown-pill .pill-count {
+    font-size: 11px;
+    background: rgba(255,255,255,0.2);
+    padding: 1px 6px;
+    border-radius: 100px;
+  }
+  .godown-pill:not(.active) .pill-count {
+    background: var(--bg);
+    color: var(--ink-mute);
+  }
+
+  /* ── STOCK TABLE ── */
+  .table-wrap {
+    background: var(--surface);
+    border-radius: var(--r);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+  .table-toolbar {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .search-input {
+    flex: 1;
+    min-width: 200px;
+    padding: 8px 12px 8px 34px;
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    font-size: 13px;
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238e8e93' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E") 10px center no-repeat;
+    outline: none;
+    color: var(--ink);
+  }
+  .search-input:focus { border-color: var(--ink-soft); }
+  .filter-select {
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    font-size: 13px;
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    outline: none;
+    cursor: pointer;
+  }
+  .result-count { font-size: 12px; color: var(--ink-mute); margin-left: auto; }
+
+  table { width: 100%; border-collapse: collapse; }
+  th {
+    padding: 11px 14px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--ink-mute);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+  }
+  th:hover { color: var(--ink); }
+  th.sort-asc::after  { content: ' ↑'; }
+  th.sort-desc::after { content: ' ↓'; }
+  td {
+    padding: 11px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    vertical-align: middle;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--bg); }
+
+  .stock-badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 100px;
+    font-size: 12px;
+    font-weight: 600;
+    min-width: 36px;
+    text-align: center;
+  }
+  .stock-badge.zero  { background: var(--maroon-l); color: var(--maroon); }
+  .stock-badge.low   { background: var(--amber-l);  color: var(--amber); }
+  .stock-badge.ok    { background: var(--sage-l);   color: var(--sage); }
+
+  .sku-tag {
+    font-size: 11px;
+    color: var(--ink-mute);
+    font-family: monospace;
+    background: var(--bg);
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+
+  .item-name-cell .name { font-weight: 500; font-size: 13px; }
+  .item-name-cell .desc { font-size: 11px; color: var(--ink-mute); margin-top: 1px; }
+
+  /* ── CATEGORY GRID ── */
+  .category-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+  .category-card {
+    background: var(--surface);
+    border-radius: var(--r);
+    padding: 18px 20px;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: all 0.18s;
+  }
+  .category-card:hover { box-shadow: var(--shadow-hover); transform: translateY(-1px); }
+  .category-card.selected { border-color: var(--ink); }
+  .cat-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .cat-name { font-weight: 600; font-size: 14px; }
+  .cat-icon { font-size: 22px; }
+  .cat-bar-wrap { background: var(--bg); border-radius: 100px; height: 6px; margin-bottom: 10px; overflow: hidden; }
+  .cat-bar { height: 100%; border-radius: 100px; background: var(--sage); transition: width 0.6s ease; }
+  .cat-stats { display: flex; gap: 16px; }
+  .cat-stat { font-size: 12px; color: var(--ink-mute); }
+  .cat-stat strong { color: var(--ink); font-weight: 600; display: block; font-size: 16px; }
+
+  /* ── MONEY SECTION ── */
+  .money-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  @media (max-width: 700px) { .money-grid { grid-template-columns: 1fr; } }
+
+  .money-card {
+    background: var(--surface);
+    border-radius: var(--r);
+    padding: 20px;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+  }
+  .money-card-title {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--ink-mute);
+    margin-bottom: 14px;
+  }
+
+  .payout-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .payout-row:last-child { border-bottom: none; }
+  .payout-date { color: var(--ink-mute); font-size: 12px; }
+  .payout-item { font-weight: 500; }
+  .payout-godown { font-size: 11px; color: var(--ink-mute); }
+  .payout-amount { font-weight: 600; color: var(--terra); }
+
+  /* ── MOVEMENT CHART ── */
+  .chart-card {
+    background: var(--surface);
+    border-radius: var(--r);
+    padding: 20px;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+    margin-bottom: 24px;
+  }
+  .chart-title {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--ink-mute);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .chart-legend {
+    display: flex;
+    gap: 16px;
+    font-size: 12px;
+  }
+  .legend-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 4px;
+  }
+  .bar-chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+    height: 140px;
+    overflow-x: auto;
+    padding-bottom: 24px;
+    position: relative;
+  }
+  .bar-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    flex: 1;
+    min-width: 36px;
+  }
+  .bar-pair {
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    width: 100%;
+  }
+  .bar {
+    flex: 1;
+    border-radius: 3px 3px 0 0;
+    min-height: 2px;
+    transition: opacity 0.2s;
+    cursor: pointer;
+  }
+  .bar.in-bar  { background: var(--sage); }
+  .bar.out-bar { background: var(--terra); }
+  .bar:hover { opacity: 0.75; }
+  .bar-label { font-size: 9px; color: var(--ink-mute); text-align: center; white-space: nowrap; }
+
+  /* ── REORDER TABLE ── */
+  .reorder-row td:first-child { border-left: 3px solid var(--amber); }
+  .stockout-row td:first-child { border-left: 3px solid var(--maroon); }
+
+  .urgency-chip {
+    padding: 3px 8px;
+    border-radius: 100px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .urgency-chip.critical { background: var(--maroon-l); color: var(--maroon); }
+  .urgency-chip.low-stock { background: var(--amber-l); color: var(--amber); }
+
+  /* ── EMPTY STATE ── */
+  .empty-state {
+    text-align: center;
+    padding: 48px 24px;
+    color: var(--ink-mute);
+  }
+  .empty-state .empty-icon { font-size: 36px; margin-bottom: 10px; }
+  .empty-state p { font-size: 14px; }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 768px) {
+    .main { padding: 16px; }
+    .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    .header { padding: 0 16px; }
+    .nav { padding: 0 12px; }
+    .kpi-value { font-size: 20px; }
+  }
+
+  /* ── TABS CONTENT ── */
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* ── VALUE HIGHLIGHT ── */
+  .value-positive { color: var(--sage); font-weight: 600; }
+  .value-negative { color: var(--maroon); font-weight: 600; }
+  .value-currency { font-weight: 600; color: var(--ink); }
+
+  /* ── CATEGORY DETAIL TABLE (appears below category grid when one is clicked) ── */
+  #category-detail { margin-top: 20px; }
+
+  .divider { height: 1px; background: var(--border); margin: 24px 0; }
+
+  /* ── PAYOUT SUMMARY ── */
+  .payout-summary-bar {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+  .payout-kpi {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    padding: 14px 18px;
+    flex: 1;
+    min-width: 140px;
+  }
+  .payout-kpi-label { font-size: 11px; color: var(--ink-mute); font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; }
+  .payout-kpi-value { font-size: 20px; font-weight: 600; }
+
+  /* category colour map */
+  .cat-colour-0 { background: var(--sage); }
+  .cat-colour-1 { background: var(--terra); }
+  .cat-colour-2 { background: var(--amber); }
+  .cat-colour-3 { background: var(--slate); }
+  .cat-colour-4 { background: var(--maroon); }
+  .cat-colour-5 { background: var(--gold); }
+  .cat-colour-6 { background: #5c7a6a; }
+  .cat-colour-7 { background: #8b6355; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="header-brand">Sai <span>Marketing</span></div>
+  <div class="header-right">
+    <div class="last-refresh">
+      <span class="refresh-dot"></span>
+      <span id="refresh-time">Loading…</span>
+    </div>
+    <button class="refresh-btn" onclick="loadAll()">↻ Refresh</button>
+  </div>
+</header>
+
+<!-- NAV -->
+<nav class="nav">
+  <div class="nav-tab active" onclick="switchTab('live-stock')" data-tab="live-stock">
+    <span class="tab-icon">📦</span> Live Stock
+  </div>
+  <div class="nav-tab" onclick="switchTab('money')" data-tab="money">
+    <span class="tab-icon">₹</span> Money in Stock
+  </div>
+  <div class="nav-tab" onclick="switchTab('categories')" data-tab="categories">
+    <span class="tab-icon">🗂</span> By Category
+  </div>
+  <div class="nav-tab" onclick="switchTab('movement')" data-tab="movement">
+    <span class="tab-icon">↕</span> Movement
+  </div>
+  <div class="nav-tab" onclick="switchTab('payouts')" data-tab="payouts">
+    <span class="tab-icon">🧾</span> Payouts
+  </div>
+  <div class="nav-tab" onclick="switchTab('reorder')" data-tab="reorder">
+    <span class="tab-icon">⚠️</span> Reorder <span id="reorder-badge" style="background:var(--maroon);color:#fff;font-size:10px;padding:1px 6px;border-radius:100px;display:none"></span>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<main class="main">
+  <div id="loading" class="loading-screen">
+    <div class="spinner"></div>
+    <div class="loading-text">Loading stock data…</div>
+  </div>
+
+  <div id="app" style="display:none">
+
+    <!-- ═══ TAB 1: LIVE STOCK ═══ -->
+    <div id="tab-live-stock" class="tab-content active">
+      <div class="section-header">
+        <div class="section-title">📦 Live Stock <span class="section-sub" id="live-stock-sub"></span></div>
+      </div>
+
+      <!-- KPIs -->
+      <div class="kpi-grid" id="live-kpis"></div>
+
+      <!-- Godown pills -->
+      <div class="godown-pills" id="godown-pills"></div>
+
+      <!-- Table -->
+      <div class="table-wrap">
+        <div class="table-toolbar">
+          <input class="search-input" type="text" placeholder="Search item, SKU…" id="stock-search" oninput="filterStockTable()">
+          <select class="filter-select" id="stock-filter-cat" onchange="filterStockTable()">
+            <option value="">All Categories</option>
+          </select>
+          <select class="filter-select" id="stock-filter-level" onchange="filterStockTable()">
+            <option value="">All Stock Levels</option>
+            <option value="zero">Out of Stock</option>
+            <option value="low">Low Stock (1–5)</option>
+            <option value="ok">In Stock (5+)</option>
+          </select>
+          <div class="result-count" id="stock-result-count"></div>
+        </div>
+        <div style="overflow-x:auto">
+          <table id="stock-table">
+            <thead>
+              <tr>
+                <th onclick="sortTable('stock-table',0)">Item</th>
+                <th onclick="sortTable('stock-table',1)">SKU</th>
+                <th onclick="sortTable('stock-table',2)" id="col-sebby">Sebby</th>
+                <th onclick="sortTable('stock-table',3)" id="col-rene">Rene</th>
+                <th onclick="sortTable('stock-table',4)" id="col-amey">Amey</th>
+                <th onclick="sortTable('stock-table',5)" id="col-anupa">Anupa</th>
+                <th onclick="sortTable('stock-table',6)" id="col-dorma">Dorma</th>
+                <th onclick="sortTable('stock-table',7)" id="col-godwin">Godwin</th>
+                <th onclick="sortTable('stock-table',8)">Total</th>
+                <th>Sale Rate</th>
+              </tr>
+            </thead>
+            <tbody id="stock-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ TAB 2: MONEY IN STOCK ═══ -->
+    <div id="tab-money" class="tab-content">
+      <div class="section-header">
+        <div class="section-title">₹ Money in Inventory</div>
+      </div>
+      <div class="kpi-grid" id="money-kpis"></div>
+      <div class="money-grid">
+        <div class="money-card">
+          <div class="money-card-title">💰 Inventory Value by Category (Purchase Cost)</div>
+          <div id="money-category-bars"></div>
+        </div>
+        <div class="money-card">
+          <div class="money-card-title">📊 Inventory Value by Godown</div>
+          <div id="money-godown-bars"></div>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <div class="table-toolbar">
+          <input class="search-input" type="text" placeholder="Search item…" id="money-search" oninput="filterMoneyTable()">
+          <div class="result-count" id="money-result-count"></div>
+        </div>
+        <div style="overflow-x:auto">
+          <table id="money-table">
+            <thead>
+              <tr>
+                <th onclick="sortTable('money-table',0)">Item</th>
+                <th onclick="sortTable('money-table',1)">SKU</th>
+                <th onclick="sortTable('money-table',2)">Total Units</th>
+                <th onclick="sortTable('money-table',3)">Purchase Rate</th>
+                <th onclick="sortTable('money-table',4)">Sale Rate</th>
+                <th onclick="sortTable('money-table',5)">Inventory Cost</th>
+                <th onclick="sortTable('money-table',6)">Potential Revenue</th>
+                <th onclick="sortTable('money-table',7)">Margin</th>
+              </tr>
+            </thead>
+            <tbody id="money-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ TAB 3: BY CATEGORY ═══ -->
+    <div id="tab-categories" class="tab-content">
+      <div class="section-header">
+        <div class="section-title">🗂 Stock by Category</div>
+      </div>
+      <div class="category-grid" id="category-grid"></div>
+      <div id="category-detail"></div>
+    </div>
+
+    <!-- ═══ TAB 4: MOVEMENT ═══ -->
+    <div id="tab-movement" class="tab-content">
+      <div class="section-header">
+        <div class="section-title">↕ Stock Movement</div>
+      </div>
+      <div class="kpi-grid" id="movement-kpis"></div>
+      <div class="chart-card">
+        <div class="chart-title">
+          Daily Movement — Last 30 Days
+          <div class="chart-legend">
+            <span><span class="legend-dot" style="background:var(--sage)"></span>Stock In</span>
+            <span><span class="legend-dot" style="background:var(--terra)"></span>Stock Out</span>
+          </div>
+        </div>
+        <div class="bar-chart" id="movement-chart"></div>
+      </div>
+      <div class="divider"></div>
+      <div class="section-header">
+        <div class="section-title" style="font-size:18px">Recent Transactions</div>
+      </div>
+      <div class="table-wrap">
+        <div style="overflow-x:auto">
+          <table id="movement-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Type</th>
+                <th>Item</th>
+                <th>Godown</th>
+                <th>Qty</th>
+                <th>Value</th>
+              </tr>
+            </thead>
+            <tbody id="movement-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ TAB 5: PAYOUTS ═══ -->
+    <div id="tab-payouts" class="tab-content">
+      <div class="section-header">
+        <div class="section-title">🧾 Purchase Payouts</div>
+      </div>
+      <div class="payout-summary-bar" id="payout-kpis"></div>
+      <div class="table-wrap">
+        <div class="table-toolbar">
+          <input class="search-input" type="text" placeholder="Search item, PO ref…" id="payout-search" oninput="filterPayoutTable()">
+          <select class="filter-select" id="payout-filter-godown" onchange="filterPayoutTable()">
+            <option value="">All Godowns</option>
+          </select>
+          <div class="result-count" id="payout-result-count"></div>
+        </div>
+        <div style="overflow-x:auto">
+          <table id="payout-table">
+            <thead>
+              <tr>
+                <th onclick="sortTable('payout-table',0)">Date</th>
+                <th onclick="sortTable('payout-table',1)">Item</th>
+                <th onclick="sortTable('payout-table',2)">SKU</th>
+                <th onclick="sortTable('payout-table',3)">Godown</th>
+                <th onclick="sortTable('payout-table',4)">Qty Added</th>
+                <th onclick="sortTable('payout-table',5)">Purchase Rate</th>
+                <th onclick="sortTable('payout-table',6)">Total Cost</th>
+                <th onclick="sortTable('payout-table',7)">PO / Notes</th>
+              </tr>
+            </thead>
+            <tbody id="payout-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ TAB 6: REORDER ═══ -->
+    <div id="tab-reorder" class="tab-content">
+      <div class="section-header">
+        <div class="section-title">⚠️ Reorder & Stock-Outs</div>
+      </div>
+      <div class="kpi-grid" id="reorder-kpis"></div>
+      <div class="section-header" style="margin-top:8px">
+        <div style="font-size:13px;font-weight:600;color:var(--maroon)">🔴 Out of Stock</div>
+      </div>
+      <div class="table-wrap" style="margin-bottom:24px">
+        <div style="overflow-x:auto">
+          <table id="stockout-table">
+            <thead>
+              <tr><th>Item</th><th>SKU</th><th>Category</th><th>Reorder Level</th><th>Status</th></tr>
+            </thead>
+            <tbody id="stockout-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="section-header">
+        <div style="font-size:13px;font-weight:600;color:var(--amber)">🟡 Low Stock — Reorder Soon</div>
+      </div>
+      <div class="table-wrap">
+        <div style="overflow-x:auto">
+          <table id="reorder-table">
+            <thead>
+              <tr><th>Item</th><th>SKU</th><th>Category</th><th>Current Stock</th><th>Reorder Level</th><th>Urgency</th></tr>
+            </thead>
+            <tbody id="reorder-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /app -->
+</main>
+
+<script>
+// ── CONFIG ──────────────────────────────────────────────────────────────────
+const SHEET_ID = '1WJKQ2euCVVSO-74pfLpHWW1LacFWjbaMQaQk9rmr998';
+const BASE     = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv`;
+
+const GODOWNS = ['Sebby','Rene','Amey','Anupa','Dorma','Godwin'];
+
+// Inventory Data column indices (0-based)
+const IC = {
+  name:0, desc:1, sizeW:2, sizeL:3, type:4,
+  sku:7,
+  inSebby:11, outSebby:12,
+  inRene:13,  outRene:14,
+  inAmey:15,  outAmey:16,
+  inAnupa:17, outAnupa:18,
+  inDorma:19, outDorma:20,
+  inGodwin:21,outGodwin:22,
+  inTotal:23, outTotal:24, balance:25,
+  purchaseRate:26, gst:27,
+  saleRate:31,
+  totalInvCost:40,
+  openSebby:41, openRene:42, openAmey:43, openAnupa:44, openDorma:45, openGodwin:46,
+  reorderLevel:51
+};
+
+// Stock Reductions columns (0-based)
+const RC = { date:0, label:1, sku:2, itemName:3, godown:4, qty:5, price:6, notes:7 };
+// Stock Additions columns (0-based)
+const AC = { date:0, label:1, sku:2, itemName:3, godown:4, qty:5, notes:6 };
+
+// ── STATE ────────────────────────────────────────────────────────────────────
+let INV = [], REDUCTIONS = [], ADDITIONS = [];
+let activeGodown = 'All';
+let sortState = {};
+let selectedCategory = null;
+
+// ── FETCH CSV ────────────────────────────────────────────────────────────────
+async function fetchCSV(sheetName) {
+  const url = `${BASE}&sheet=${encodeURIComponent(sheetName)}`;
+  const resp = await fetch(url);
+  const text = await resp.text();
+  return parseCSV(text);
+}
+
+function parseCSV(text) {
+  const rows = [];
+  const lines = text.split('\n');
+  for (let i = 1; i < lines.length; i++) { // skip header
+    const line = lines[i].trim();
+    if (!line) continue;
+    const cols = [];
+    let cur = '', inQ = false;
+    for (let c = 0; c < line.length; c++) {
+      const ch = line[c];
+      if (ch === '"') { inQ = !inQ; continue; }
+      if (ch === ',' && !inQ) { cols.push(cur.trim()); cur = ''; }
+      else cur += ch;
+    }
+    cols.push(cur.trim());
+    rows.push(cols);
+  }
+  return rows;
+}
+
+function num(v) {
+  if (v === undefined || v === null || v === '') return 0;
+  return parseFloat(String(v).replace(/[₹,\s%]/g,'')) || 0;
+}
+
+function fmt(n) {
+  if (!n || isNaN(n)) return '—';
+  return '₹' + Math.round(n).toLocaleString('en-IN');
+}
+
+function fmtDate(d) {
+  if (!d) return '—';
+  const parts = d.split(/[-\/]/);
+  if (parts.length < 3) return d;
+  return d;
+}
+
+// ── LOAD ALL ─────────────────────────────────────────────────────────────────
+async function loadAll() {
+  document.getElementById('loading').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+  try {
+    [INV, REDUCTIONS, ADDITIONS] = await Promise.all([
+      fetchCSV('Inventory Data'),
+      fetchCSV('Stock Reductions'),
+      fetchCSV('Stock Additions')
+    ]);
+    // filter out blank rows
+    INV = INV.filter(r => r[IC.name] && r[IC.sku]);
+    REDUCTIONS = REDUCTIONS.filter(r => r[RC.sku] && r[RC.qty]);
+    ADDITIONS  = ADDITIONS .filter(r => r[AC.sku] && r[AC.qty]);
+
+    document.getElementById('refresh-time').textContent =
+      'Updated ' + new Date().toLocaleTimeString('en-IN', {hour:'2-digit',minute:'2-digit'});
+
+    renderAll();
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+  } catch(e) {
+    document.getElementById('loading').innerHTML =
+      `<div class="error-box">⚠️ Could not load data. Make sure the sheet is shared publicly.<br><small>${e.message}</small></div>`;
+  }
+}
+
+// ── RENDER ALL ───────────────────────────────────────────────────────────────
+function renderAll() {
+  renderLiveStock();
+  renderMoney();
+  renderCategories();
+  renderMovement();
+  renderPayouts();
+  renderReorder();
+}
+
+// ── HELPERS ──────────────────────────────────────────────────────────────────
+function godownBalance(row, g) {
+  const pairs = [
+    [IC.inSebby, IC.outSebby],
+    [IC.inRene,  IC.outRene],
+    [IC.inAmey,  IC.outAmey],
+    [IC.inAnupa, IC.outAnupa],
+    [IC.inDorma, IC.outDorma],
+    [IC.inGodwin,IC.outGodwin],
+  ];
+  return num(row[pairs[g][0]]) - num(row[pairs[g][1]]);
+}
+
+function totalBalance(row) { return num(row[IC.balance]); }
+
+function stockBadge(n) {
+  if (n <= 0) return `<span class="stock-badge zero">0</span>`;
+  if (n <= 5) return `<span class="stock-badge low">${n}</span>`;
+  return `<span class="stock-badge ok">${n}</span>`;
+}
+
+function itemLabel(row) {
+  const name = row[IC.name] || '';
+  const desc = row[IC.desc] || '';
+  const sizeW = row[IC.sizeW] || '';
+  const sizeL = row[IC.sizeL] || '';
+  return { name, desc, size: [sizeW, sizeL].filter(s=>s&&s!='N/A').join(' × ') };
+}
+
+// ── TAB 1: LIVE STOCK ────────────────────────────────────────────────────────
+function renderLiveStock() {
+  const total = INV.reduce((s,r) => s + Math.max(0, totalBalance(r)), 0);
+  const oos   = INV.filter(r => totalBalance(r) <= 0).length;
+  const low   = INV.filter(r => totalBalance(r) > 0 && totalBalance(r) <= 5).length;
+  const ok    = INV.filter(r => totalBalance(r) > 5).length;
+
+  document.getElementById('live-stock-sub').innerHTML =
+    `&nbsp;·&nbsp; ${INV.length} SKUs`;
+
+  document.getElementById('live-kpis').innerHTML = `
+    <div class="kpi-card sage">
+      <div class="kpi-icon">📦</div>
+      <div class="kpi-label">Total Units</div>
+      <div class="kpi-value">${total.toLocaleString('en-IN')}</div>
+      <div class="kpi-sub">Across all godowns</div>
+    </div>
+    <div class="kpi-card terra">
+      <div class="kpi-icon">🔴</div>
+      <div class="kpi-label">Out of Stock</div>
+      <div class="kpi-value">${oos}</div>
+      <div class="kpi-sub">SKUs at zero</div>
+    </div>
+    <div class="kpi-card amber">
+      <div class="kpi-icon">🟡</div>
+      <div class="kpi-label">Low Stock</div>
+      <div class="kpi-value">${low}</div>
+      <div class="kpi-sub">1–5 units</div>
+    </div>
+    <div class="kpi-card gold">
+      <div class="kpi-icon">✅</div>
+      <div class="kpi-label">Well Stocked</div>
+      <div class="kpi-value">${ok}</div>
+      <div class="kpi-sub">Above 5 units</div>
+    </div>
+  `;
+
+  // Godown pills
+  const pills = ['All', ...GODOWNS];
+  document.getElementById('godown-pills').innerHTML = pills.map(g => {
+    let count = 0;
+    if (g === 'All') {
+      count = INV.filter(r => totalBalance(r) > 0).length;
+    } else {
+      const gi = GODOWNS.indexOf(g);
+      count = INV.filter(r => godownBalance(r, gi) > 0).length;
+    }
+    return `<div class="godown-pill ${g===activeGodown?'active':''}" onclick="setGodown('${g}')">
+      ${g} <span class="pill-count">${count}</span>
+    </div>`;
+  }).join('');
+
+  // Category filter
+  const cats = [...new Set(INV.map(r=>r[IC.type]).filter(Boolean))].sort();
+  const sel = document.getElementById('stock-filter-cat');
+  sel.innerHTML = '<option value="">All Categories</option>' +
+    cats.map(c=>`<option>${c}</option>`).join('');
+
+  renderStockTable();
+}
+
+function setGodown(g) {
+  activeGodown = g;
+  renderLiveStock();
+}
+
+function renderStockTable() {
+  const search = (document.getElementById('stock-search').value||'').toLowerCase();
+  const catF   = document.getElementById('stock-filter-cat').value;
+  const levelF = document.getElementById('stock-filter-level').value;
+
+  let rows = INV.filter(row => {
+    const lbl = itemLabel(row);
+    const matchSearch = !search ||
+      lbl.name.toLowerCase().includes(search) ||
+      lbl.desc.toLowerCase().includes(search) ||
+      (row[IC.sku]||'').toLowerCase().includes(search);
+    const matchCat = !catF || row[IC.type] === catF;
+    let stock = 0;
+    if (activeGodown === 'All') {
+      stock = totalBalance(row);
+    } else {
+      const gi = GODOWNS.indexOf(activeGodown);
+      stock = godownBalance(row, gi);
+    }
+    const matchLevel = !levelF ||
+      (levelF==='zero' && stock<=0) ||
+      (levelF==='low'  && stock>0 && stock<=5) ||
+      (levelF==='ok'   && stock>5);
+    return matchSearch && matchCat && matchLevel;
+  });
+
+  document.getElementById('stock-result-count').textContent = `${rows.length} items`;
+
+  document.getElementById('stock-tbody').innerHTML = rows.map(row => {
+    const lbl = itemLabel(row);
+    const bals = GODOWNS.map((_,gi) => godownBalance(row, gi));
+    const total = totalBalance(row);
+    const saleRate = num(row[IC.saleRate]);
+    return `<tr>
+      <td>
+        <div class="item-name-cell">
+          <div class="name">${lbl.name}</div>
+          <div class="desc">${lbl.desc}${lbl.size?' · '+lbl.size:''}</div>
+        </div>
+      </td>
+      <td><span class="sku-tag">${row[IC.sku]||''}</span></td>
+      ${bals.map(b => `<td style="text-align:center">${stockBadge(b)}</td>`).join('')}
+      <td style="text-align:center"><strong>${stockBadge(total)}</strong></td>
+      <td style="text-align:right">${saleRate ? fmt(saleRate) : '—'}</td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="10"><div class="empty-state"><div class="empty-icon">📭</div><p>No items match your filters</p></div></td></tr>`;
+}
+
+function filterStockTable() { renderStockTable(); }
+
+// ── TAB 2: MONEY ─────────────────────────────────────────────────────────────
+function renderMoney() {
+  let totalCost = 0, totalRevPotential = 0;
+  INV.forEach(row => {
+    const bal = Math.max(0, totalBalance(row));
+    const pr  = num(row[IC.purchaseRate]);
+    const sr  = num(row[IC.saleRate]);
+    totalCost        += bal * pr;
+    totalRevPotential+= bal * sr;
+  });
+  const margin = totalRevPotential - totalCost;
+
+  document.getElementById('money-kpis').innerHTML = `
+    <div class="kpi-card terra">
+      <div class="kpi-icon">💸</div>
+      <div class="kpi-label">Capital Locked</div>
+      <div class="kpi-value" style="font-size:20px">${fmt(totalCost)}</div>
+      <div class="kpi-sub">Purchase value in stock</div>
+    </div>
+    <div class="kpi-card sage">
+      <div class="kpi-icon">📈</div>
+      <div class="kpi-label">Revenue Potential</div>
+      <div class="kpi-value" style="font-size:20px">${fmt(totalRevPotential)}</div>
+      <div class="kpi-sub">If all stock sold today</div>
+    </div>
+    <div class="kpi-card gold">
+      <div class="kpi-icon">✨</div>
+      <div class="kpi-label">Gross Margin Potential</div>
+      <div class="kpi-value" style="font-size:20px">${fmt(margin)}</div>
+      <div class="kpi-sub">${totalCost>0?Math.round(margin/totalRevPotential*100):0}% margin</div>
+    </div>
+  `;
+
+  // Category bars
+  const catMap = {};
+  INV.forEach(row => {
+    const cat = row[IC.type] || 'Uncategorised';
+    const bal = Math.max(0, totalBalance(row));
+    const pr  = num(row[IC.purchaseRate]);
+    if (!catMap[cat]) catMap[cat] = 0;
+    catMap[cat] += bal * pr;
+  });
+  const catEntries = Object.entries(catMap).sort((a,b)=>b[1]-a[1]);
+  const maxCat = catEntries[0]?.[1] || 1;
+  const colours = ['--sage','--terra','--amber','--slate','--maroon','--gold','--sage','--terra'];
+  document.getElementById('money-category-bars').innerHTML = catEntries.map(([cat, val], i) => `
+    <div style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
+        <span style="font-weight:500">${cat}</span>
+        <span style="color:var(--ink-mute)">${fmt(val)}</span>
+      </div>
+      <div class="cat-bar-wrap">
+        <div class="cat-bar" style="width:${Math.round(val/maxCat*100)}%;background:var(${colours[i%colours.length]})"></div>
+      </div>
+    </div>
+  `).join('');
+
+  // Godown bars
+  const gdMap = {};
+  GODOWNS.forEach((g, gi) => {
+    let v = 0;
+    INV.forEach(row => {
+      const bal = Math.max(0, godownBalance(row, gi));
+      v += bal * num(row[IC.purchaseRate]);
+    });
+    gdMap[g] = v;
+  });
+  const gdEntries = Object.entries(gdMap).sort((a,b)=>b[1]-a[1]);
+  const maxGd = gdEntries[0]?.[1] || 1;
+  document.getElementById('money-godown-bars').innerHTML = gdEntries.map(([g, val], i) => `
+    <div style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
+        <span style="font-weight:500">${g}</span>
+        <span style="color:var(--ink-mute)">${fmt(val)}</span>
+      </div>
+      <div class="cat-bar-wrap">
+        <div class="cat-bar" style="width:${Math.round(val/maxGd*100)}%;background:var(${colours[i%colours.length]})"></div>
+      </div>
+    </div>
+  `).join('');
+
+  renderMoneyTable();
+}
+
+function renderMoneyTable() {
+  const search = (document.getElementById('money-search').value||'').toLowerCase();
+  let rows = INV.filter(row => {
+    const lbl = itemLabel(row);
+    return !search ||
+      lbl.name.toLowerCase().includes(search) ||
+      (row[IC.sku]||'').toLowerCase().includes(search);
+  }).filter(r => Math.max(0, totalBalance(r)) > 0);
+
+  rows.sort((a,b) => {
+    const va = Math.max(0,totalBalance(a)) * num(a[IC.purchaseRate]);
+    const vb = Math.max(0,totalBalance(b)) * num(b[IC.purchaseRate]);
+    return vb - va;
+  });
+
+  document.getElementById('money-result-count').textContent = `${rows.length} items`;
+  document.getElementById('money-tbody').innerHTML = rows.map(row => {
+    const lbl = itemLabel(row);
+    const bal = Math.max(0, totalBalance(row));
+    const pr  = num(row[IC.purchaseRate]);
+    const sr  = num(row[IC.saleRate]);
+    const cost = bal * pr;
+    const rev  = bal * sr;
+    const mgn  = pr && sr ? Math.round((sr-pr)/sr*100) : null;
+    return `<tr>
+      <td><div class="item-name-cell"><div class="name">${lbl.name}</div><div class="desc">${lbl.desc}</div></div></td>
+      <td><span class="sku-tag">${row[IC.sku]||''}</span></td>
+      <td style="text-align:center">${bal}</td>
+      <td style="text-align:right">${pr?fmt(pr):'—'}</td>
+      <td style="text-align:right">${sr?fmt(sr):'—'}</td>
+      <td style="text-align:right" class="value-currency">${fmt(cost)}</td>
+      <td style="text-align:right value-positive">${fmt(rev)}</td>
+      <td style="text-align:center">${mgn!==null?`<span style="color:var(--sage);font-weight:600">${mgn}%</span>`:'—'}</td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">📭</div><p>No items</p></div></td></tr>`;
+}
+
+function filterMoneyTable() { renderMoneyTable(); }
+
+// ── TAB 3: CATEGORIES ────────────────────────────────────────────────────────
+function renderCategories() {
+  const catMap = {};
+  INV.forEach(row => {
+    const cat = row[IC.type] || 'Uncategorised';
+    if (!catMap[cat]) catMap[cat] = { skus:0, units:0, cost:0, items:[] };
+    catMap[cat].skus++;
+    catMap[cat].units += Math.max(0, totalBalance(row));
+    catMap[cat].cost  += Math.max(0, totalBalance(row)) * num(row[IC.purchaseRate]);
+    catMap[cat].items.push(row);
+  });
+
+  const entries = Object.entries(catMap).sort((a,b)=>b[1].units-a[1].units);
+  const maxUnits = entries[0]?.[1].units || 1;
+
+  const catIcons = {
+    'Roofing':'🏗️','service':'🔧','goods':'📦',
+    'Hardware':'🔩','Insulation':'🧱','Panels':'🪵',
+    'Cement Board':'🪨','PVC':'🔷'
+  };
+
+  document.getElementById('category-grid').innerHTML = entries.map(([cat, data], i) => {
+    const icon = catIcons[cat] || '📦';
+    return `<div class="category-card ${selectedCategory===cat?'selected':''}" onclick="selectCategory('${cat.replace(/'/,"\\'")}')">
+      <div class="cat-header">
+        <div class="cat-name">${cat}</div>
+        <div class="cat-icon">${icon}</div>
+      </div>
+      <div class="cat-bar-wrap">
+        <div class="cat-bar cat-colour-${i%8}" style="width:${Math.round(data.units/maxUnits*100)}%"></div>
+      </div>
+      <div class="cat-stats">
+        <div class="cat-stat"><strong>${data.skus}</strong> SKUs</div>
+        <div class="cat-stat"><strong>${data.units.toLocaleString('en-IN')}</strong> Units</div>
+        <div class="cat-stat"><strong>${fmt(data.cost)}</strong> Value</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function selectCategory(cat) {
+  selectedCategory = selectedCategory === cat ? null : cat;
+  renderCategories();
+  const detail = document.getElementById('category-detail');
+  if (!selectedCategory) { detail.innerHTML = ''; return; }
+
+  const items = INV.filter(r => (r[IC.type]||'Uncategorised') === cat && totalBalance(r) > 0);
+  detail.innerHTML = `
+    <div class="table-wrap">
+      <div style="padding:14px 18px;background:var(--bg);border-bottom:1px solid var(--border);font-weight:600;font-size:13px">
+        ${cat} — ${items.length} items in stock
+      </div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr><th>Item</th><th>SKU</th>
+            ${GODOWNS.map(g=>`<th>${g}</th>`).join('')}
+            <th>Total</th>
+          </tr></thead>
+          <tbody>
+            ${items.map(row => {
+              const lbl = itemLabel(row);
+              return `<tr>
+                <td><div class="name">${lbl.name}</div><div class="desc" style="font-size:11px;color:var(--ink-mute)">${lbl.desc}${lbl.size?' · '+lbl.size:''}</div></td>
+                <td><span class="sku-tag">${row[IC.sku]||''}</span></td>
+                ${GODOWNS.map((_,gi)=>`<td style="text-align:center">${stockBadge(godownBalance(row,gi))}</td>`).join('')}
+                <td style="text-align:center"><strong>${stockBadge(totalBalance(row))}</strong></td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+// ── TAB 4: MOVEMENT ──────────────────────────────────────────────────────────
+function renderMovement() {
+  const totalIn  = ADDITIONS .reduce((s,r) => s + num(r[AC.qty]), 0);
+  const totalOut = REDUCTIONS.reduce((s,r) => s + num(r[RC.qty]), 0);
+  const revenueOut = REDUCTIONS.reduce((s,r) => s + num(r[RC.qty]) * num(r[RC.price]), 0);
+
+  document.getElementById('movement-kpis').innerHTML = `
+    <div class="kpi-card sage">
+      <div class="kpi-icon">↗</div>
+      <div class="kpi-label">Total Stock In</div>
+      <div class="kpi-value">${totalIn.toLocaleString('en-IN')}</div>
+      <div class="kpi-sub">${ADDITIONS.length} additions</div>
+    </div>
+    <div class="kpi-card terra">
+      <div class="kpi-icon">↘</div>
+      <div class="kpi-label">Total Stock Out</div>
+      <div class="kpi-value">${totalOut.toLocaleString('en-IN')}</div>
+      <div class="kpi-sub">${REDUCTIONS.length} reductions</div>
+    </div>
+    <div class="kpi-card gold">
+      <div class="kpi-icon">💰</div>
+      <div class="kpi-label">Sales Value (Out)</div>
+      <div class="kpi-value" style="font-size:20px">${fmt(revenueOut)}</div>
+      <div class="kpi-sub">At sale rate</div>
+    </div>
+  `;
+
+  // Bar chart — last 30 days
+  const dayMap = {};
+  const now = new Date();
+  for (let d = 29; d >= 0; d--) {
+    const dt = new Date(now); dt.setDate(now.getDate()-d);
+    const key = dt.toISOString().slice(0,10);
+    dayMap[key] = { in:0, out:0 };
+  }
+  ADDITIONS.forEach(r => {
+    const raw = r[AC.date]||'';
+    const parts = raw.split(/[-\/]/);
+    if (parts.length < 3) return;
+    // handle dd-mm-yyyy or yyyy-mm-dd
+    let key;
+    if (parts[0].length === 4) key = `${parts[0]}-${parts[1].padStart(2,'0')}-${parts[2].padStart(2,'0')}`;
+    else key = `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
+    if (dayMap[key] !== undefined) dayMap[key].in += num(r[AC.qty]);
+  });
+  REDUCTIONS.forEach(r => {
+    const raw = r[RC.date]||'';
+    const parts = raw.split(/[-\/]/);
+    if (parts.length < 3) return;
+    let key;
+    if (parts[0].length === 4) key = `${parts[0]}-${parts[1].padStart(2,'0')}-${parts[2].padStart(2,'0')}`;
+    else key = `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
+    if (dayMap[key] !== undefined) dayMap[key].out += num(r[RC.qty]);
+  });
+
+  const days = Object.entries(dayMap);
+  const maxVal = Math.max(...days.map(([,v]) => Math.max(v.in, v.out)), 1);
+  const chartH = 100;
+
+  document.getElementById('movement-chart').innerHTML = days.map(([date, vals]) => {
+    const inH  = Math.round(vals.in  / maxVal * chartH);
+    const outH = Math.round(vals.out / maxVal * chartH);
+    const label = date.slice(5).replace('-','/');
+    return `<div class="bar-group" title="${date}: In ${vals.in}, Out ${vals.out}">
+      <div class="bar-pair">
+        <div class="bar in-bar"  style="height:${inH}px"></div>
+        <div class="bar out-bar" style="height:${outH}px"></div>
+      </div>
+      <div class="bar-label">${label}</div>
+    </div>`;
+  }).join('');
+
+  // Recent transactions combined
+  const combined = [
+    ...ADDITIONS .map(r => ({ date:r[AC.date], type:'IN',  sku:r[AC.sku], name:r[AC.itemName]||r[AC.label], godown:r[AC.godown], qty:num(r[AC.qty]), value:0 })),
+    ...REDUCTIONS.map(r => ({ date:r[RC.date], type:'OUT', sku:r[RC.sku], name:r[RC.itemName]||r[RC.label], godown:r[RC.godown], qty:num(r[RC.qty]), value:num(r[RC.qty])*num(r[RC.price]) })),
+  ].sort((a,b) => b.date.localeCompare(a.date)).slice(0,60);
+
+  document.getElementById('movement-tbody').innerHTML = combined.map(t => `
+    <tr>
+      <td>${t.date||'—'}</td>
+      <td><span style="padding:3px 8px;border-radius:100px;font-size:11px;font-weight:600;background:${t.type==='IN'?'var(--sage-l)':'var(--terra-l)'};color:${t.type==='IN'?'var(--sage)':'var(--terra)'}">
+        ${t.type==='IN'?'↗ IN':'↘ OUT'}
+      </span></td>
+      <td><div class="name">${(t.name||'').substring(0,40)}</div><span class="sku-tag">${t.sku||''}</span></td>
+      <td>${t.godown||'—'}</td>
+      <td style="text-align:center;font-weight:600">${t.qty}</td>
+      <td style="text-align:right">${t.value>0?fmt(t.value):'—'}</td>
+    </tr>
+  `).join('') || `<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">📭</div><p>No movement data yet</p></div></td></tr>`;
+}
+
+// ── TAB 5: PAYOUTS ───────────────────────────────────────────────────────────
+function renderPayouts() {
+  // Build payout rows: Stock Additions × purchase rate from Inventory Data
+  const skuMap = {};
+  INV.forEach(r => { skuMap[r[IC.sku]] = num(r[IC.purchaseRate]); });
+
+  const payoutRows = ADDITIONS.map(r => ({
+    date:   r[AC.date],
+    label:  r[AC.itemName] || r[AC.label],
+    sku:    r[AC.sku],
+    godown: r[AC.godown],
+    qty:    num(r[AC.qty]),
+    rate:   skuMap[r[AC.sku]] || 0,
+    total:  num(r[AC.qty]) * (skuMap[r[AC.sku]] || 0),
+    notes:  r[AC.notes] || ''
+  })).sort((a,b) => b.date.localeCompare(a.date));
+
+  const totalPaid  = payoutRows.reduce((s,r)=>s+r.total,0);
+  const totalUnits = payoutRows.reduce((s,r)=>s+r.qty,0);
+  const thisMonth  = payoutRows.filter(r => {
+    const parts = (r.date||'').split(/[-\/]/);
+    if (parts.length < 3) return false;
+    const m = parts[0].length===4 ? parts[1] : parts[1];
+    return m == (new Date().getMonth()+1);
+  }).reduce((s,r)=>s+r.total,0);
+
+  document.getElementById('payout-kpis').innerHTML = `
+    <div class="payout-kpi">
+      <div class="payout-kpi-label">Total Purchased</div>
+      <div class="payout-kpi-value" style="color:var(--terra)">${fmt(totalPaid)}</div>
+    </div>
+    <div class="payout-kpi">
+      <div class="payout-kpi-label">Units Received</div>
+      <div class="payout-kpi-value">${totalUnits.toLocaleString('en-IN')}</div>
+    </div>
+    <div class="payout-kpi">
+      <div class="payout-kpi-label">This Month</div>
+      <div class="payout-kpi-value" style="color:var(--amber)">${fmt(thisMonth)}</div>
+    </div>
+    <div class="payout-kpi">
+      <div class="payout-kpi-label">Transactions</div>
+      <div class="payout-kpi-value">${payoutRows.length}</div>
+    </div>
+  `;
+
+  // Godown filter
+  const godowns = [...new Set(payoutRows.map(r=>r.godown).filter(Boolean))];
+  document.getElementById('payout-filter-godown').innerHTML =
+    '<option value="">All Godowns</option>' + godowns.map(g=>`<option>${g}</option>`).join('');
+
+  window._payoutRows = payoutRows;
+  filterPayoutTable();
+}
+
+function filterPayoutTable() {
+  const search = (document.getElementById('payout-search').value||'').toLowerCase();
+  const gdF    = document.getElementById('payout-filter-godown').value;
+  const rows   = (window._payoutRows||[]).filter(r =>
+    (!search || r.label.toLowerCase().includes(search) || (r.sku||'').toLowerCase().includes(search) || (r.notes||'').toLowerCase().includes(search)) &&
+    (!gdF   || r.godown === gdF)
+  );
+  document.getElementById('payout-result-count').textContent = `${rows.length} transactions`;
+  document.getElementById('payout-tbody').innerHTML = rows.map(r => `
+    <tr>
+      <td>${r.date||'—'}</td>
+      <td><div class="name">${(r.label||'').substring(0,45)}</div></td>
+      <td><span class="sku-tag">${r.sku||''}</span></td>
+      <td>${r.godown||'—'}</td>
+      <td style="text-align:center;font-weight:600">${r.qty}</td>
+      <td style="text-align:right">${r.rate?fmt(r.rate):'—'}</td>
+      <td style="text-align:right;font-weight:600;color:var(--terra)">${r.total?fmt(r.total):'—'}</td>
+      <td style="font-size:12px;color:var(--ink-mute)">${r.notes||'—'}</td>
+    </tr>
+  `).join('') || `<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">🧾</div><p>No purchase records yet. Add entries to Stock Additions to see payouts here.</p></div></td></tr>`;
+}
+
+// ── TAB 6: REORDER ───────────────────────────────────────────────────────────
+function renderReorder() {
+  const stockOuts = INV.filter(r => totalBalance(r) <= 0);
+  const lowStock  = INV.filter(r => {
+    const bal  = totalBalance(r);
+    const rl   = num(r[IC.reorderLevel]);
+    return bal > 0 && (rl > 0 ? bal <= rl : bal <= 5);
+  });
+
+  // Update badge
+  const badge = document.getElementById('reorder-badge');
+  const count = stockOuts.length + lowStock.length;
+  if (count > 0) {
+    badge.textContent = count;
+    badge.style.display = 'inline-block';
+  }
+
+  document.getElementById('reorder-kpis').innerHTML = `
+    <div class="kpi-card maroon">
+      <div class="kpi-icon">🔴</div>
+      <div class="kpi-label">Out of Stock</div>
+      <div class="kpi-value">${stockOuts.length}</div>
+      <div class="kpi-sub">Need immediate reorder</div>
+    </div>
+    <div class="kpi-card amber">
+      <div class="kpi-icon">🟡</div>
+      <div class="kpi-label">Low / At Reorder Level</div>
+      <div class="kpi-value">${lowStock.length}</div>
+      <div class="kpi-sub">Order soon</div>
+    </div>
+    <div class="kpi-card sage">
+      <div class="kpi-icon">✅</div>
+      <div class="kpi-label">Healthy Stock</div>
+      <div class="kpi-value">${INV.length - stockOuts.length - lowStock.length}</div>
+      <div class="kpi-sub">No action needed</div>
+    </div>
+  `;
+
+  document.getElementById('stockout-tbody').innerHTML = stockOuts.map(row => {
+    const lbl = itemLabel(row);
+    const rl  = num(row[IC.reorderLevel]);
+    return `<tr class="stockout-row">
+      <td><div class="name">${lbl.name}</div><div class="desc" style="font-size:11px;color:var(--ink-mute)">${lbl.desc}</div></td>
+      <td><span class="sku-tag">${row[IC.sku]||''}</span></td>
+      <td>${row[IC.type]||'—'}</td>
+      <td>${rl||'—'}</td>
+      <td><span class="urgency-chip critical">Out of Stock</span></td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="5"><div class="empty-state" style="padding:24px"><div class="empty-icon">✅</div><p>No stock-outs — great!</p></div></td></tr>`;
+
+  document.getElementById('reorder-tbody').innerHTML = lowStock.sort((a,b)=>totalBalance(a)-totalBalance(b)).map(row => {
+    const lbl = itemLabel(row);
+    const bal = totalBalance(row);
+    const rl  = num(row[IC.reorderLevel]);
+    return `<tr class="reorder-row">
+      <td><div class="name">${lbl.name}</div><div class="desc" style="font-size:11px;color:var(--ink-mute)">${lbl.desc}</div></td>
+      <td><span class="sku-tag">${row[IC.sku]||''}</span></td>
+      <td>${row[IC.type]||'—'}</td>
+      <td style="text-align:center"><strong>${bal}</strong></td>
+      <td style="text-align:center">${rl||'5'}</td>
+      <td><span class="urgency-chip low-stock">${bal<=2?'Critical':'Low'}</span></td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="6"><div class="empty-state" style="padding:24px"><div class="empty-icon">✅</div><p>All items above reorder levels</p></div></td></tr>`;
+}
+
+// ── SORT ─────────────────────────────────────────────────────────────────────
+function sortTable(tableId, colIdx) {
+  const table = document.getElementById(tableId);
+  const tbody = table.querySelector('tbody');
+  const rows  = Array.from(tbody.querySelectorAll('tr'));
+  const key   = tableId + '-' + colIdx;
+  const asc   = sortState[key] !== 'asc';
+  sortState[key] = asc ? 'asc' : 'desc';
+
+  rows.sort((a,b) => {
+    const at = a.cells[colIdx]?.textContent.trim()||'';
+    const bt = b.cells[colIdx]?.textContent.trim()||'';
+    const an = parseFloat(at.replace(/[₹,]/g,''));
+    const bn = parseFloat(bt.replace(/[₹,]/g,''));
+    if (!isNaN(an) && !isNaN(bn)) return asc ? an-bn : bn-an;
+    return asc ? at.localeCompare(bt) : bt.localeCompare(at);
+  });
+
+  table.querySelectorAll('th').forEach((th,i)=>{
+    th.classList.remove('sort-asc','sort-desc');
+    if (i===colIdx) th.classList.add(asc?'sort-asc':'sort-desc');
+  });
+
+  rows.forEach(r => tbody.appendChild(r));
+}
+
+// ── TAB SWITCH ───────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+  document.getElementById('tab-'+tab).classList.add('active');
+}
+
+// ── INIT ─────────────────────────────────────────────────────────────────────
+loadAll();
+</script>
+</body>
+</html>
