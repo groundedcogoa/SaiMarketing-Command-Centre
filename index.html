@@ -210,6 +210,7 @@
   <div class="nav-tab" data-tab="money" onclick="switchTab('money')"><span>₹</span> Money in Stock</div>
   <div class="nav-tab" data-tab="categories" onclick="switchTab('categories')"><span>🗂</span> By Category</div>
   <div class="nav-tab" data-tab="movement" onclick="switchTab('movement')"><span>↕</span> Movement</div>
+  <div class="nav-tab" data-tab="payouts" onclick="switchTab('payouts')"><span>💸</span> Payouts</div>
   <div class="nav-tab" data-tab="reorder" onclick="switchTab('reorder')">
     <span>⚠️</span> Reorder
     <span class="tab-badge" id="reorder-badge" style="display:none"></span>
@@ -421,6 +422,40 @@
       </div>
     </div>
 
+    <!-- ═══ PAYOUTS ═══ -->
+    <div id="tab-payouts" class="tab-content">
+      <div class="section-hdr"><div class="section-title">💸 Purchase Payouts</div></div>
+      <div class="summary-grid" id="payout-kpis"></div>
+      <div class="tbl-wrap">
+        <div class="tbl-toolbar">
+          <input class="search" type="text" placeholder="Search item, SKU, PO ref…" id="payout-search" oninput="filterPayoutTable()">
+          <select class="fsel" id="payout-gd-filter" onchange="filterPayoutTable()">
+            <option value="">All Godowns</option>
+            <option>Sebby</option><option>Rene</option><option>Amey</option>
+            <option>Anupa</option><option>Dorma</option><option>Godwin</option>
+          </select>
+          <div class="res-count" id="payout-count"></div>
+        </div>
+        <div style="overflow-x:auto">
+          <table id="payout-table">
+            <thead><tr>
+              <th onclick="srt('payout-table',0)">Order / Invoice Date</th>
+              <th onclick="srt('payout-table',1)">Item</th>
+              <th onclick="srt('payout-table',2)">SKU</th>
+              <th onclick="srt('payout-table',3)">Godown</th>
+              <th onclick="srt('payout-table',4)">Delivery Date</th>
+              <th onclick="srt('payout-table',5)">Qty</th>
+              <th onclick="srt('payout-table',6)">Purchase Rate</th>
+              <th onclick="srt('payout-table',7)">Total Cost</th>
+              <th onclick="srt('payout-table',8)">Payment Due</th>
+              <th onclick="srt('payout-table',9)">PO Reference</th>
+            </tr></thead>
+            <tbody id="payout-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
     <!-- ═══ REORDER ═══ -->
     <div id="tab-reorder" class="tab-content">
       <div class="section-hdr"><div class="section-title">⚠️ Reorder Alerts</div></div>
@@ -455,14 +490,15 @@
 <script>
 // ── CONFIG ────────────────────────────────────────────────────────────────────
 const SHEET_ID    = '1WJKQ2euCVVSO-74pfLpHWW1LacFWjbaMQaQk9rmr998';
-const GID_INV     = 0;
-const GID_SALES   = 1644576672;  // Stock Reductions = Sales log
-const BASE        = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=`;
+const GID_INV      = 0;             // Inventory Data
+const GID_SALES    = 1644576672;    // Stock Reductions (sales log)
+const GID_ADD      = 1352294952;    // Stock Additions (purchases)
+const BASE         = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=`;
 const GODOWNS     = ['Sebby','Rene','Amey','Anupa','Dorma','Godwin'];
 const COLOURS     = ['--sage','--terra','--amber','--slate','--maroon','--gold','--sage','--terra'];
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
-let INV = [], SALES = [];
+let INV = [], SALES = [], ADDITIONS = [];
 let activeGd = 'All';
 let selectedCat = null;
 let sortState = {};
@@ -536,20 +572,23 @@ async function loadAll() {
   document.getElementById('loading').style.display = 'flex';
   document.getElementById('app').style.display = 'none';
   try {
-    const [invData, salesData] = await Promise.all([
+    const [invData, salesData, addData] = await Promise.all([
       fetchSheet(GID_INV, 0),
-      fetchSheet(GID_SALES, 2)   // header is row 3 (index 2) in this sheet
+      fetchSheet(GID_SALES, 2),   // header is row 3 (index 2) in Stock Reductions
+      fetchSheet(GID_ADD, 0),     // header is row 1 in Stock Additions
     ]);
 
-    // Inventory: col A1 is a client name, real item name header is "Masterpiece Interiors and contractors"
-    // We remap it to "Item Name" for internal use
+    // Inventory: col A1 is a client name — remap to 'Item Name'
     INV = invData.rows.filter(r => r['Masterpiece Interiors and contractors'] || r['Item Name'] || r['SKU']);
     INV.forEach(r => {
-      // Normalise item name key
       if (!r['Item Name']) r['Item Name'] = r['Masterpiece Interiors and contractors'] || '';
     });
 
     SALES = salesData.rows.filter(r => r['Date'] && (r['Qty Sold'] || r['Actual Total Selling Price incl GST']));
+
+    // Stock Additions columns: Order Placed Date, Invoice Date, Payment Due Date, Delivery Date,
+    //   Item, SKU, Item Name, Godown, Qty Added, Notes / PO Reference No.
+    ADDITIONS = addData.rows.filter(r => r['SKU'] && r['Qty Added'] && Number(r['Qty Added']) > 0);
 
     document.getElementById('rt').textContent =
       'Updated ' + new Date().toLocaleTimeString('en-IN', {hour:'2-digit',minute:'2-digit'});
@@ -574,6 +613,7 @@ function renderAll() {
   renderMoney();
   renderCategories();
   renderMovement();
+  renderPayouts();
   renderReorder();
 }
 
@@ -923,6 +963,72 @@ function renderMoneyTable() {
 
 function filterMoneyTable() { renderMoneyTable(); }
 
+// ── PAYOUTS TAB (Stock Additions = purchase payouts) ─────────────────────────
+function renderPayouts() {
+  const rateMap={};
+  INV.forEach(r=>{if(r['SKU'])rateMap[r['SKU']]=n(r['Per Unit Purchase Rate']||0);});
+
+  const rows = ADDITIONS.map(r=>({
+    orderDate:   r['Order Placed Date']||'',
+    invoiceDate: r['Invoice Date']||'',
+    delivDate:   r['Delivery Date']||'',
+    dueDate:     r['Payment Due Date']||'',
+    item:        r['Item']||r['Item Name']||'',
+    sku:         r['SKU']||'',
+    itemName:    r['Item Name']||'',
+    godown:      r['Godown']||'',
+    qty:         n(r['Qty Added']),
+    rate:        rateMap[r['SKU']]||0,
+    total:       n(r['Qty Added'])*(rateMap[r['SKU']]||0),
+    notes:       r['Notes / PO Reference No.']||'',
+  })).filter(r=>r.qty>0).sort((a,b)=>b.delivDate.localeCompare(a.delivDate)||b.invoiceDate.localeCompare(a.invoiceDate));
+
+  const totalCost    = rows.reduce((s,r)=>s+r.total,0);
+  const totalUnits   = rows.reduce((s,r)=>s+r.qty,0);
+  const now          = new Date();
+  const thisMonthCost= rows.filter(r=>{
+    const d=parseDate(r.delivDate||r.invoiceDate);
+    return d&&d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();
+  }).reduce((s,r)=>s+r.total,0);
+
+  // KPIs
+  const kpiEl = document.getElementById('payout-kpis');
+  if (kpiEl) kpiEl.innerHTML=[
+    {label:'Total Purchased',value:fmt(totalCost),color:'var(--terra)'},
+    {label:'Units Received', value:totalUnits.toLocaleString('en-IN'),color:'var(--ink)'},
+    {label:'This Month',     value:fmt(thisMonthCost),color:'var(--amber)'},
+    {label:'Transactions',   value:rows.length,color:'var(--ink)'},
+  ].map(k=>`<div class="sum-card"><div class="sum-label">${k.label}</div><div class="sum-value" style="color:${k.color}">${k.value}</div></div>`).join('');
+
+  window._payoutRows = rows;
+  filterPayoutTable();
+}
+
+function filterPayoutTable() {
+  const search = (document.getElementById('payout-search')?.value||'').toLowerCase();
+  const gdF    = document.getElementById('payout-gd-filter')?.value||'';
+  const rows   = (window._payoutRows||[]).filter(r=>
+    (!search||r.item.toLowerCase().includes(search)||(r.sku||'').toLowerCase().includes(search)||(r.notes||'').toLowerCase().includes(search))&&
+    (!gdF||r.godown===gdF)
+  );
+  const ct = document.getElementById('payout-count');
+  if(ct) ct.textContent=`${rows.length} transactions`;
+  const tb = document.getElementById('payout-tbody');
+  if(!tb) return;
+  tb.innerHTML=rows.map(r=>`<tr>
+    <td><div class="nm" style="font-size:12px">${r.orderDate||'—'}</div><div class="ds">Inv: ${r.invoiceDate||'—'}</div></td>
+    <td><div class="nm" style="font-size:12px">${r.item.substring(0,45)}</div></td>
+    <td><span class="sku">${r.sku||''}</span></td>
+    <td>${r.godown||'—'}</td>
+    <td>${r.delivDate||'—'}</td>
+    <td style="text-align:center;font-weight:600">${r.qty}</td>
+    <td style="text-align:right">${r.rate?fmt(r.rate):'—'}</td>
+    <td style="text-align:right;font-weight:700;color:var(--terra)">${r.total?fmt(r.total):'—'}</td>
+    <td style="font-size:12px;color:var(--ink-mute)">${r.dueDate||'—'}</td>
+    <td style="font-size:12px;color:var(--ink-mute)">${r.notes||'—'}</td>
+  </tr>`).join('')||`<tr><td colspan="10"><div class="empty"><div class="ei">🧾</div><p>No purchase records yet.</p></div></td></tr>`;
+}
+
 // ── TAB 4: CATEGORIES ─────────────────────────────────────────────────────────
 function renderCategories() {
   const catMap={};
@@ -976,40 +1082,89 @@ function selectCat(cat) {
 
 // ── TAB 5: MOVEMENT ──────────────────────────────────────────────────────────
 function renderMovement() {
-  const totalOut = SALES.reduce((s,r)=>s+n(r['Qty Sold']),0);
-  const revOut   = SALES.reduce((s,r)=>s+n(r['Actual Total Selling Price incl GST']),0);
+  const totalOut   = SALES.reduce((s,r)=>s+n(r['Qty Sold']),0);
+  const revOut     = SALES.reduce((s,r)=>s+n(r['Actual Total Selling Price incl GST']),0);
+  const totalIn    = ADDITIONS.reduce((s,r)=>s+n(r['Qty Added']),0);
+
+  // Build purchase rate map for additions cost
+  const rateMap={};
+  INV.forEach(r=>{if(r['SKU'])rateMap[r['SKU']]=n(r['Per Unit Purchase Rate']||0);});
+  const purchCost = ADDITIONS.reduce((s,r)=>s+n(r['Qty Added'])*(rateMap[r['SKU']]||0),0);
 
   document.getElementById('mov-kpis').innerHTML = [
-    {cls:'terra', icon:'↘', label:'Units Sold', value:totalOut.toLocaleString('en-IN'), sub:`${SALES.length} transactions`},
-    {cls:'sage',  icon:'💰', label:'Revenue from Sales', value:fmt(revOut), sub:'Incl GST'},
-    {cls:'gold',  icon:'📊', label:'Avg Transaction', value:SALES.length?fmt(revOut/SALES.length):'—', sub:'Per line item'},
+    {cls:'sage',  icon:'↗', label:'Units Received',    value:totalIn.toLocaleString('en-IN'),  sub:`${ADDITIONS.length} additions`},
+    {cls:'terra', icon:'↘', label:'Units Sold',         value:totalOut.toLocaleString('en-IN'), sub:`${SALES.length} transactions`},
+    {cls:'gold',  icon:'💰', label:'Revenue from Sales', value:fmt(revOut),                     sub:'Incl GST'},
+    {cls:'amber', icon:'💸', label:'Purchase Cost',      value:fmt(purchCost),                  sub:'Stock additions'},
   ].map(k=>`<div class="kpi ${k.cls}"><div class="kpi-icon">${k.icon}</div><div class="kpi-label">${k.label}</div><div class="kpi-value">${k.value}</div><div class="kpi-sub">${k.sub}</div></div>`).join('');
 
-  // Chart
+  // Bar chart — stock in (additions by delivery date) vs out (sales)
   const now=new Date(), dayMap={};
   for (let d=29;d>=0;d--){const dt=new Date(now);dt.setDate(now.getDate()-d);dayMap[dt.toISOString().slice(0,10)]={in:0,out:0};}
-  SALES.forEach(r=>{const k=toISO(r['Date']);if(dayMap[k]!==undefined)dayMap[k].out+=n(r['Qty Sold']);});
+
+  // Use Delivery Date for additions (col index 3), fall back to Invoice Date, then Order Placed Date
+  ADDITIONS.forEach(r=>{
+    const dateVal = r['Delivery Date'] || r['Invoice Date'] || r['Order Placed Date'] || '';
+    const k=toISO(dateVal);
+    if(k && dayMap[k]!==undefined) dayMap[k].in+=n(r['Qty Added']);
+  });
+  SALES.forEach(r=>{
+    const k=toISO(r['Date']);
+    if(k && dayMap[k]!==undefined) dayMap[k].out+=n(r['Qty Sold']);
+  });
+
   const days=Object.entries(dayMap);
   const maxV=Math.max(...days.map(([,v])=>Math.max(v.in,v.out)),1);
+  const CH=100;
   document.getElementById('mov-chart').innerHTML=days.map(([date,vals])=>{
-    const oh=Math.round(vals.out/maxV*100);
-    return `<div class="bar-group" title="${date}: Sold ${vals.out}">
-      <div class="bar-pair"><div class="bar out-b" style="height:${oh}px"></div></div>
+    const ih=Math.round(vals.in/maxV*CH);
+    const oh=Math.round(vals.out/maxV*CH);
+    return `<div class="bar-group" title="${date}&#10;In: ${vals.in} units&#10;Out: ${vals.out} units">
+      <div class="bar-pair">
+        <div class="bar in-b"  style="height:${ih}px"></div>
+        <div class="bar out-b" style="height:${oh}px"></div>
+      </div>
       <div class="bar-lbl">${date.slice(5).replace('-','/')}</div>
     </div>`;
   }).join('');
 
-  // Recent
-  const sorted=[...SALES].sort((a,b)=>(b['Date']||'').localeCompare(a['Date']||'')).slice(0,60);
-  document.getElementById('mov-tbody').innerHTML=sorted.map(r=>`
+  // Combined recent transactions — both IN and OUT
+  const combined = [
+    ...ADDITIONS.map(r=>({
+      date: r['Delivery Date']||r['Invoice Date']||r['Order Placed Date']||'',
+      type: 'IN',
+      item: r['Item']||r['Item Name']||'',
+      sku:  r['SKU']||'',
+      godown: r['Godown']||'',
+      qty:  n(r['Qty Added']),
+      value: n(r['Qty Added'])*(rateMap[r['SKU']]||0),
+      note: r['Notes / PO Reference No.']||'',
+    })),
+    ...SALES.map(r=>({
+      date: r['Date']||'',
+      type: 'OUT',
+      item: r['Item']||r['Item Name']||'',
+      sku:  r['SKU']||'',
+      godown: r['Godown']||'',
+      qty:  n(r['Qty Sold']),
+      value: n(r['Actual Total Selling Price incl GST']),
+      note: r['Client Name']||'',
+    })),
+  ].filter(r=>r.date).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,80);
+
+  document.getElementById('mov-tbody').innerHTML=combined.map(r=>`
     <tr>
-      <td>${r['Date']||'—'}</td>
-      <td><span style="padding:3px 8px;border-radius:100px;font-size:11px;font-weight:600;background:var(--terra-l);color:var(--terra)">↘ SALE</span></td>
-      <td><div class="nm" style="font-size:12px">${(r['Item']||r['Item Name']||'').substring(0,40)}</div><span class="sku">${r['SKU']||''}</span></td>
-      <td>${r['Godown']||'—'}</td>
-      <td style="text-align:center;font-weight:600">${r['Qty Sold']||'—'}</td>
-      <td style="text-align:right;font-weight:600;color:var(--sage)">${fmt(n(r['Actual Total Selling Price incl GST']))}</td>
-    </tr>`).join('') || `<tr><td colspan="6"><div class="empty"><div class="ei">📭</div><p>No data yet</p></div></td></tr>`;
+      <td>${r.date||'—'}</td>
+      <td><span style="padding:3px 8px;border-radius:100px;font-size:11px;font-weight:600;
+        background:${r.type==='IN'?'var(--sage-l)':'var(--terra-l)'};
+        color:${r.type==='IN'?'var(--sage)':'var(--terra)'}">
+        ${r.type==='IN'?'↗ IN':'↘ OUT'}
+      </span></td>
+      <td><div class="nm" style="font-size:12px">${r.item.substring(0,45)}</div><span class="sku">${r.sku}</span></td>
+      <td>${r.godown||'—'}</td>
+      <td style="text-align:center;font-weight:600">${r.qty||'—'}</td>
+      <td style="text-align:right;font-weight:600;color:${r.type==='IN'?'var(--terra)':'var(--sage)'}">${r.value>0?fmt(r.value):'—'}</td>
+    </tr>`).join('') || `<tr><td colspan="6"><div class="empty"><div class="ei">📭</div><p>No movement data yet</p></div></td></tr>`;
 }
 
 // ── TAB 6: REORDER ───────────────────────────────────────────────────────────
