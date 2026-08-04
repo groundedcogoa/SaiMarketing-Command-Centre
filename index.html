@@ -32,6 +32,36 @@
   *{box-sizing:border-box;margin:0;padding:0;}
   body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;font-size:14px;line-height:1.5;}
 
+
+  /* GLOBAL FILTER BAR */
+  .filterbar{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 24px 10px;position:sticky;top:56px;z-index:90;}
+  .fb-row{display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;max-width:1400px;margin:0 auto;}
+  .fb-group{display:flex;flex-direction:column;gap:4px;}
+  .fb-label{font-size:10px;font-weight:600;color:var(--ink-mute);text-transform:uppercase;letter-spacing:.06em;}
+  .fb-ctl{padding:7px 10px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:13px;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);outline:none;height:34px;}
+  .fb-ctl:focus{border-color:var(--sage);box-shadow:0 0 0 2px var(--sage-l);}
+  .fb-ctl.date{width:140px;cursor:pointer;}
+  .fb-ctl.prod{width:260px;}
+  .fb-ctl.sel{cursor:pointer;}
+  .fb-dash{color:var(--ink-mute);padding-bottom:9px;font-size:12px;}
+  .fb-clear{background:none;border:1px solid var(--border);color:var(--ink-soft);padding:7px 14px;border-radius:var(--r-sm);font-size:12px;font-family:'DM Sans',sans-serif;cursor:pointer;height:34px;transition:all .2s;}
+  .fb-clear:hover{border-color:var(--maroon);color:var(--maroon);background:var(--maroon-l);}
+  .fb-chips{display:flex;gap:8px;flex-wrap:wrap;align-items:center;max-width:1400px;margin:10px auto 0;}
+  .chip{display:inline-flex;align-items:center;gap:7px;background:var(--sage-l);color:var(--sage);border:1px solid #cfe0d6;padding:3px 6px 3px 11px;border-radius:100px;font-size:12px;font-weight:500;}
+  .chip-x{cursor:pointer;font-size:15px;line-height:1;opacity:.55;padding:0 4px;}
+  .chip-x:hover{opacity:1;}
+  .chip-clear{cursor:pointer;font-size:12px;color:var(--ink-mute);text-decoration:underline;text-underline-offset:2px;}
+  .chip-clear:hover{color:var(--maroon);}
+  .chip-none{font-size:12px;color:var(--ink-mute);}
+  .mode-banner{max-width:1400px;margin:0 auto 18px;background:var(--amber-l);border:1px solid #eddcb4;border-left:3px solid var(--amber);border-radius:var(--r-sm);padding:11px 15px;font-size:12.5px;color:#7a5410;line-height:1.55;}
+  .mode-banner strong{color:var(--amber);}
+  @media (max-width:720px){
+    .filterbar{padding:10px 14px;position:static;}
+    .fb-ctl.prod{width:100%;}
+    .fb-group{flex:1 1 140px;}
+    .fb-ctl{width:100%;}
+  }
+
   /* HEADER */
   .header{background:var(--ink);padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:100;}
   .brand{font-family:'Fraunces',serif;font-weight:300;font-size:18px;color:#fff;letter-spacing:.02em;}
@@ -217,6 +247,45 @@
   </div>
 </nav>
 
+<div class="filterbar">
+  <div class="fb-row">
+    <div class="fb-group">
+      <label class="fb-label" for="f-preset">Date range</label>
+      <select class="fb-ctl sel" id="f-preset" onchange="setPreset(this.value)">
+        <option value="all">All time</option>
+        <option value="today">Today</option>
+        <option value="week">This week</option>
+        <option value="month">This month</option>
+        <option value="last30">Last 30 days</option>
+        <option value="last90">Last 90 days</option>
+        <option value="quarter">This quarter</option>
+        <option value="fy">This financial year</option>
+        <option value="custom">Custom</option>
+      </select>
+    </div>
+    <div class="fb-group">
+      <label class="fb-label" for="f-from">From</label>
+      <input class="fb-ctl date" type="date" id="f-from" onchange="setCustomDate()">
+    </div>
+    <div class="fb-dash">to</div>
+    <div class="fb-group">
+      <label class="fb-label" for="f-to">To</label>
+      <input class="fb-ctl date" type="date" id="f-to" onchange="setCustomDate()">
+    </div>
+    <div class="fb-group">
+      <label class="fb-label" for="f-prod">Product</label>
+      <input class="fb-ctl prod" type="text" id="f-prod" list="f-prod-list" placeholder="All products — type name or SKU" onchange="setProduct()" oninput="if(!this.value)setProduct()">
+      <datalist id="f-prod-list"></datalist>
+    </div>
+    <div class="fb-group">
+      <label class="fb-label" for="f-cat">Category</label>
+      <select class="fb-ctl sel" id="f-cat" onchange="setCat()"><option value="">All categories</option></select>
+    </div>
+    <button class="fb-clear" onclick="clearFilters()">Clear filters</button>
+  </div>
+  <div class="fb-chips" id="f-chips"></div>
+</div>
+
 <main class="main">
   <div id="loading" class="loading-screen">
     <div class="spinner"></div>
@@ -224,6 +293,8 @@
   </div>
 
   <div id="app" style="display:none">
+
+    <div class="mode-banner" id="mode-banner" style="display:none"></div>
 
     <!-- ═══ LIVE STOCK ═══ -->
     <div id="tab-live-stock" class="tab-content active">
@@ -235,7 +306,6 @@
       <div class="tbl-wrap">
         <div class="tbl-toolbar">
           <input class="search" type="text" placeholder="Search item or SKU…" id="ls-search" oninput="renderStockTable()">
-          <select class="fsel" id="ls-cat" onchange="renderStockTable()"><option value="">All Categories</option></select>
           <select class="fsel" id="ls-level" onchange="renderStockTable()">
             <option value="">All Levels</option>
             <option value="zero">Out of Stock</option>
@@ -246,18 +316,7 @@
         </div>
         <div style="overflow-x:auto">
           <table id="stock-table">
-            <thead><tr>
-              <th onclick="srt('stock-table',0)">Item</th>
-              <th onclick="srt('stock-table',1)">SKU</th>
-              <th onclick="srt('stock-table',2)">Sebby</th>
-              <th onclick="srt('stock-table',3)">Rene</th>
-              <th onclick="srt('stock-table',4)">Amey</th>
-              <th onclick="srt('stock-table',5)">Anupa</th>
-              <th onclick="srt('stock-table',6)">Dorma</th>
-              <th onclick="srt('stock-table',7)">Godwin</th>
-              <th onclick="srt('stock-table',8)">Total</th>
-              <th onclick="srt('stock-table',9)">Sale Rate</th>
-            </tr></thead>
+            <thead id="ls-thead"></thead>
             <tbody id="ls-tbody"></tbody>
           </table>
         </div>
@@ -267,7 +326,7 @@
     <!-- ═══ BILLING & PAYMENTS ═══ -->
     <div id="tab-billing" class="tab-content">
       <div class="section-hdr">
-        <div class="section-title">🧾 Billing & Payments</div>
+        <div class="section-title">🧾 Billing & Payments <span class="section-sub" id="bill-sub"></span></div>
       </div>
 
       <!-- Summary KPIs -->
@@ -288,7 +347,7 @@
       <!-- Daily revenue chart -->
       <div class="chart-card">
         <div class="chart-title">
-          Daily Revenue — Last 30 Days
+          <span id="rev-chart-title">Daily Revenue — Last 30 Days</span>
           <div class="chart-legend">
             <span><span class="leg-dot" style="background:var(--sage)"></span>Collected</span>
             <span><span class="leg-dot" style="background:var(--amber)"></span>Due</span>
@@ -360,7 +419,7 @@
 
     <!-- ═══ MONEY IN STOCK ═══ -->
     <div id="tab-money" class="tab-content">
-      <div class="section-hdr"><div class="section-title">₹ Money in Inventory</div></div>
+      <div class="section-hdr"><div class="section-title">₹ Money in Inventory <span class="section-sub" id="money-sub"></span></div></div>
       <div class="kpi-grid" id="money-kpis"></div>
       <div class="two-col">
         <div class="card"><div class="card-title">💰 Value by Category</div><div id="money-cat"></div></div>
@@ -373,16 +432,7 @@
         </div>
         <div style="overflow-x:auto">
           <table id="money-table">
-            <thead><tr>
-              <th onclick="srt('money-table',0)">Item</th>
-              <th onclick="srt('money-table',1)">SKU</th>
-              <th onclick="srt('money-table',2)">Units</th>
-              <th onclick="srt('money-table',3)">Purchase Rate</th>
-              <th onclick="srt('money-table',4)">Sale Rate</th>
-              <th onclick="srt('money-table',5)">Stock Cost</th>
-              <th onclick="srt('money-table',6)">Revenue Potential</th>
-              <th onclick="srt('money-table',7)">Margin</th>
-            </tr></thead>
+            <thead id="money-thead"></thead>
             <tbody id="money-tbody"></tbody>
           </table>
         </div>
@@ -391,18 +441,18 @@
 
     <!-- ═══ CATEGORIES ═══ -->
     <div id="tab-categories" class="tab-content">
-      <div class="section-hdr"><div class="section-title">🗂 Stock by Category</div></div>
+      <div class="section-hdr"><div class="section-title">🗂 Stock by Category <span class="section-sub" id="cat-sub"></span></div></div>
       <div class="cat-grid" id="cat-grid"></div>
       <div id="cat-detail"></div>
     </div>
 
     <!-- ═══ MOVEMENT ═══ -->
     <div id="tab-movement" class="tab-content">
-      <div class="section-hdr"><div class="section-title">↕ Stock Movement</div></div>
+      <div class="section-hdr"><div class="section-title">↕ Stock Movement <span class="section-sub" id="mov-sub"></span></div></div>
       <div class="kpi-grid" id="mov-kpis"></div>
       <div class="chart-card">
         <div class="chart-title">
-          Daily Movement — Last 30 Days
+          <span id="mov-chart-title">Daily Movement — Last 30 Days</span>
           <div class="chart-legend">
             <span><span class="leg-dot" style="background:var(--sage)"></span>In</span>
             <span><span class="leg-dot" style="background:var(--terra)"></span>Out</span>
@@ -424,7 +474,7 @@
 
     <!-- ═══ PAYOUTS ═══ -->
     <div id="tab-payouts" class="tab-content">
-      <div class="section-hdr"><div class="section-title">💸 Purchase Payouts</div></div>
+      <div class="section-hdr"><div class="section-title">💸 Purchase Payouts <span class="section-sub" id="payout-sub"></span></div></div>
       <div class="summary-grid" id="payout-kpis"></div>
       <div class="tbl-wrap">
         <div class="tbl-toolbar">
@@ -458,7 +508,7 @@
 
     <!-- ═══ REORDER ═══ -->
     <div id="tab-reorder" class="tab-content">
-      <div class="section-hdr"><div class="section-title">⚠️ Reorder Alerts</div></div>
+      <div class="section-hdr"><div class="section-title">⚠️ Reorder Alerts <span class="section-sub" id="ro-sub"></span></div></div>
       <div class="kpi-grid" id="ro-kpis"></div>
       <div class="section-hdr" style="margin-top:8px">
         <div style="font-size:13px;font-weight:600;color:var(--maroon)">🔴 Out of Stock</div>
@@ -466,7 +516,7 @@
       <div class="tbl-wrap" style="margin-bottom:24px">
         <div style="overflow-x:auto">
           <table id="oos-table">
-            <thead><tr><th>Item</th><th>SKU</th><th>Category</th><th>Reorder Level</th><th>Status</th></tr></thead>
+            <thead id="oos-thead"></thead>
             <tbody id="oos-tbody"></tbody>
           </table>
         </div>
@@ -477,7 +527,7 @@
       <div class="tbl-wrap">
         <div style="overflow-x:auto">
           <table id="ro-table">
-            <thead><tr><th>Item</th><th>SKU</th><th>Category</th><th>Stock</th><th>Reorder Level</th><th>Urgency</th></tr></thead>
+            <thead id="ro-thead"></thead>
             <tbody id="ro-tbody"></tbody>
           </table>
         </div>
@@ -503,6 +553,229 @@ let activeGd = 'All';
 let selectedCat = null;
 let sortState = {};
 let _billRows = [];
+
+// ── FILTER STATE ──────────────────────────────────────────────────────────────
+let SKUMAP = {};                 // SKU -> {name, cat, purch, sale, row}
+let activeTab = 'live-stock';
+const SNAPSHOT_TABS = ['live-stock','money','categories','reorder'];
+const FILTERS = { preset:'all', from:'', to:'', sku:'', q:'', cat:'' };
+
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function startOfDay(d){ return new Date(d.getFullYear(),d.getMonth(),d.getDate()); }
+function isoOf(d){ const p=x=>String(x).padStart(2,'0'); return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate()); }
+function prettyDate(iso){ if(!iso) return ''; const d=new Date(iso+'T00:00:00'); return d.toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}); }
+
+function presetRange(p){
+  const now = startOfDay(new Date());
+  const mk = (a,b) => ({from:isoOf(a), to:isoOf(b)});
+  if(p==='today')  return mk(now,now);
+  if(p==='week')   { const d=new Date(now); d.setDate(d.getDate()-((d.getDay()+6)%7)); return mk(d,now); }
+  if(p==='month')  return mk(new Date(now.getFullYear(),now.getMonth(),1), now);
+  if(p==='last30') { const d=new Date(now); d.setDate(d.getDate()-29); return mk(d,now); }
+  if(p==='last90') { const d=new Date(now); d.setDate(d.getDate()-89); return mk(d,now); }
+  if(p==='quarter'){ const q=Math.floor(now.getMonth()/3)*3; return mk(new Date(now.getFullYear(),q,1), now); }
+  if(p==='fy')     { const y=now.getMonth()>=3?now.getFullYear():now.getFullYear()-1; return mk(new Date(y,3,1), now); }
+  return {from:'', to:''};
+}
+
+function hasRange(){ return !!(FILTERS.from || FILTERS.to); }
+function periodMode(){ return hasRange(); }
+
+function inRange(dateStr){
+  if(!hasRange()) return true;
+  const iso = toISO(dateStr);
+  if(!iso) return false;
+  if(FILTERS.from && iso < FILTERS.from) return false;
+  if(FILTERS.to   && iso > FILTERS.to)   return false;
+  return true;
+}
+
+function rangeLabel(){
+  if(!hasRange()) return 'All time';
+  if(FILTERS.from && FILTERS.to)  return FILTERS.from===FILTERS.to ? prettyDate(FILTERS.from) : prettyDate(FILTERS.from)+' – '+prettyDate(FILTERS.to);
+  if(FILTERS.from) return 'From '+prettyDate(FILTERS.from);
+  return 'Up to '+prettyDate(FILTERS.to);
+}
+
+function activeRange(){
+  if(hasRange()){
+    const to   = FILTERS.to ? new Date(FILTERS.to+'T00:00:00') : startOfDay(new Date());
+    const from = FILTERS.from ? new Date(FILTERS.from+'T00:00:00') : new Date(to.getFullYear(), to.getMonth(), 1);
+    return {from, to};
+  }
+  const to = startOfDay(new Date());
+  const from = new Date(to); from.setDate(from.getDate()-29);
+  return {from, to};
+}
+function rangeDays(){ const {from,to}=activeRange(); return Math.max(1, Math.round((to-from)/86400000)+1); }
+
+// Auto-bucketing so a one-year range doesn't render 365 bars
+function makeBuckets(){
+  const {from,to} = activeRange();
+  const span = Math.round((to-from)/86400000)+1;
+  const unit = span<=45 ? 'day' : span<=240 ? 'week' : 'month';
+  const keys=[], labels=[];
+  if(unit==='day'){
+    for(let d=new Date(from); d<=to; d.setDate(d.getDate()+1)){ keys.push(isoOf(d)); labels.push(isoOf(d).slice(5).replace('-','/')); }
+  } else if(unit==='week'){
+    const d=new Date(from); d.setDate(d.getDate()-((d.getDay()+6)%7));
+    for(; d<=to; d.setDate(d.getDate()+7)){ keys.push(isoOf(d)); labels.push(isoOf(d).slice(5).replace('-','/')); }
+  } else {
+    const d=new Date(from.getFullYear(), from.getMonth(), 1);
+    for(; d<=to; d.setMonth(d.getMonth()+1)){ keys.push(isoOf(d)); labels.push(d.toLocaleDateString('en-IN',{month:'short',year:'2-digit'})); }
+  }
+  const index={}; keys.forEach((k,i)=>index[k]=i);
+  function bucketOf(dateStr){
+    const dt = parseDate(dateStr); if(!dt) return -1;
+    let k;
+    if(unit==='day') k = isoOf(dt);
+    else if(unit==='week'){ const d=new Date(dt); d.setDate(d.getDate()-((d.getDay()+6)%7)); k = isoOf(d); }
+    else k = isoOf(new Date(dt.getFullYear(), dt.getMonth(), 1));
+    return index[k]===undefined ? -1 : index[k];
+  }
+  const unitName = unit==='day'?'Daily':unit==='week'?'Weekly':'Monthly';
+  return {unit, unitName, keys, labels, bucketOf, count:keys.length};
+}
+
+// ── MATCHERS ──────────────────────────────────────────────────────────────────
+function catOfRow(r){ return r['Item Type']||r['Product Type']||'Uncategorised'; }
+function catOfSku(s){ return (SKUMAP[s]&&SKUMAP[s].cat)||'Uncategorised'; }
+function nameOfSku(s){ return (SKUMAP[s]&&SKUMAP[s].name)||''; }
+function purchRate(s){ return (SKUMAP[s]&&SKUMAP[s].purch)||0; }
+function saleRateOf(s){ return (SKUMAP[s]&&SKUMAP[s].sale)||0; }
+function curBal(s){ const row=SKUMAP[s]&&SKUMAP[s].row; return row?totBal(row):0; }
+function reorderLvl(s){ const row=SKUMAP[s]&&SKUMAP[s].row; return row?n(row['Reorder Level']):0; }
+
+function matchItem(sku, name){
+  if(FILTERS.sku && (sku||'') !== FILTERS.sku) return false;
+  if(FILTERS.q){
+    const hay = ((sku||'')+' '+(name||nameOfSku(sku))).toLowerCase();
+    if(!hay.includes(FILTERS.q.toLowerCase())) return false;
+  }
+  return true;
+}
+function matchCat(cat){ return !FILTERS.cat || cat===FILTERS.cat; }
+function addDateOf(r){ return r['Delivery Date']||r['Invoice Date']||r['Order Placed Date']||''; }
+
+function fINV(){ return INV.filter(r => matchItem(r['SKU'], itemInfo(r).name) && matchCat(catOfRow(r))); }
+function fSALES(){ return SALES.filter(r => inRange(r['Date']) && matchItem(r['SKU'], r['Item Name']) && matchCat(catOfSku(r['SKU']))); }
+function fADD(){ return ADDITIONS.filter(r => inRange(addDateOf(r)) && matchItem(r['SKU'], r['Item Name']||r['Item']) && matchCat(catOfSku(r['SKU']))); }
+
+// Per-SKU movement inside the active range (optionally scoped to one godown)
+function movementBySku(gd){
+  const m = {};
+  const touch = (s, nm) => {
+    if(!m[s]) m[s] = {sku:s, name:nameOfSku(s)||nm||'', cat:catOfSku(s), qtyIn:0, qtyOut:0, valIn:0, valOut:0, txIn:0, txOut:0};
+    if(!m[s].name && nm) m[s].name = nm;
+    return m[s];
+  };
+  fADD().forEach(r => {
+    if(gd && gd!=='All' && (r['Godown']||'') !== gd) return;
+    const s = r['SKU']||'', q = n(r['Qty Added']);
+    const o = touch(s, r['Item Name']||r['Item']);
+    o.qtyIn += q; o.valIn += q*purchRate(s); o.txIn++;
+  });
+  fSALES().forEach(r => {
+    if(gd && gd!=='All' && (r['Godown']||'') !== gd) return;
+    const s = r['SKU']||'', q = n(r['Qty Sold']);
+    const o = touch(s, r['Item Name']);
+    o.qtyOut += q; o.valOut += n(r['Actual Total Selling Price incl GST']); o.txOut++;
+  });
+  return Object.values(m);
+}
+function soldMapBySku(){
+  const m = {};
+  fSALES().forEach(r => { const s=r['SKU']||''; m[s] = (m[s]||0) + n(r['Qty Sold']); });
+  return m;
+}
+
+// ── FILTER BAR ────────────────────────────────────────────────────────────────
+function initFilterUI(){
+  const cats = [...new Set(INV.map(catOfRow))].filter(Boolean).sort();
+  document.getElementById('f-cat').innerHTML =
+    '<option value="">All categories</option>' +
+    cats.map(c=>`<option value="${esc(c)}"${FILTERS.cat===c?' selected':''}>${esc(c)}</option>`).join('');
+
+  const skus = Object.keys(SKUMAP).filter(Boolean)
+    .sort((a,b)=> (nameOfSku(a)||a).localeCompare(nameOfSku(b)||b));
+  document.getElementById('f-prod-list').innerHTML =
+    skus.map(s=>`<option value="${esc(s)} — ${esc(nameOfSku(s))}"></option>`).join('');
+}
+
+function setPreset(p){
+  FILTERS.preset = p;
+  if(p!=='custom'){
+    const r = presetRange(p);
+    FILTERS.from = r.from; FILTERS.to = r.to;
+    document.getElementById('f-from').value = r.from;
+    document.getElementById('f-to').value   = r.to;
+  }
+  applyFilters();
+}
+function setCustomDate(){
+  FILTERS.from = document.getElementById('f-from').value;
+  FILTERS.to   = document.getElementById('f-to').value;
+  if(FILTERS.from && FILTERS.to && FILTERS.from > FILTERS.to){
+    const t = FILTERS.from; FILTERS.from = FILTERS.to; FILTERS.to = t;
+    document.getElementById('f-from').value = FILTERS.from;
+    document.getElementById('f-to').value   = FILTERS.to;
+  }
+  FILTERS.preset = hasRange() ? 'custom' : 'all';
+  document.getElementById('f-preset').value = FILTERS.preset;
+  applyFilters();
+}
+function setProduct(){
+  const v = (document.getElementById('f-prod').value||'').trim();
+  if(v.includes(' — ')){ FILTERS.sku = v.split(' — ')[0].trim(); FILTERS.q = ''; }
+  else { FILTERS.sku = ''; FILTERS.q = v; }
+  applyFilters();
+}
+function setCat(){ FILTERS.cat = document.getElementById('f-cat').value; selectedCat = null; applyFilters(); }
+
+function clearOne(kind){
+  if(kind==='date'){ FILTERS.preset='all'; FILTERS.from=''; FILTERS.to='';
+    document.getElementById('f-preset').value='all';
+    document.getElementById('f-from').value=''; document.getElementById('f-to').value=''; }
+  if(kind==='prod'){ FILTERS.sku=''; FILTERS.q=''; document.getElementById('f-prod').value=''; }
+  if(kind==='cat'){ FILTERS.cat=''; document.getElementById('f-cat').value=''; selectedCat=null; }
+  applyFilters();
+}
+function clearFilters(){
+  FILTERS.preset='all'; FILTERS.from=''; FILTERS.to=''; FILTERS.sku=''; FILTERS.q=''; FILTERS.cat='';
+  selectedCat = null;
+  document.getElementById('f-preset').value='all';
+  document.getElementById('f-cat').value='';
+  ['f-from','f-to','f-prod'].forEach(id=>document.getElementById(id).value='');
+  applyFilters();
+}
+function applyFilters(){ renderChips(); renderAll(); }
+
+function renderChips(){
+  const chips = [];
+  if(hasRange()) chips.push({k:'date', t:'📅 '+esc(rangeLabel())});
+  if(FILTERS.sku) chips.push({k:'prod', t:'🔖 '+esc(FILTERS.sku)+(nameOfSku(FILTERS.sku)?' · '+esc(nameOfSku(FILTERS.sku).substring(0,40)):'')});
+  else if(FILTERS.q) chips.push({k:'prod', t:'🔎 “'+esc(FILTERS.q)+'”'});
+  if(FILTERS.cat) chips.push({k:'cat', t:'🗂 '+esc(FILTERS.cat)});
+  const el = document.getElementById('f-chips');
+  el.innerHTML = chips.length
+    ? chips.map(c=>`<span class="chip">${c.t}<span class="chip-x" title="Remove" onclick="clearOne('${c.k}')">×</span></span>`).join('')
+      + `<span class="chip-clear" onclick="clearFilters()">Clear all</span>`
+    : `<span class="chip-none">No filters — showing everything, all time.</span>`;
+}
+
+function updateModeBanner(){
+  const b = document.getElementById('mode-banner');
+  if(!b) return;
+  if(periodMode() && SNAPSHOT_TABS.includes(activeTab)){
+    const extra = activeTab==='reorder'
+      ? 'Reorder alerts always read current stock — the date range adds sales velocity and days of cover.'
+      : 'Stock balances have no history in the sheet, so this tab shows what moved in and out during the range instead of a balance on a given day.';
+    b.style.display = 'block';
+    b.innerHTML = `<strong>Period view · ${esc(rangeLabel())}</strong> — ${extra}`;
+  } else {
+    b.style.display = 'none';
+  }
+}
 
 // ── CSV PARSER ────────────────────────────────────────────────────────────────
 function parseCSV(text, headerRowIndex = 0) {
@@ -590,9 +863,29 @@ async function loadAll() {
     //   Item, SKU, Item Name, Godown, Qty Added, Notes / PO Reference No.
     ADDITIONS = addData.rows.filter(r => r['SKU'] && r['Qty Added'] && Number(r['Qty Added']) > 0);
 
+    // Master SKU index — powers the product/category filters across every sheet
+    SKUMAP = {};
+    INV.forEach(r => {
+      const s = r['SKU']; if(!s) return;
+      SKUMAP[s] = {
+        name:  itemInfo(r).name,
+        cat:   r['Item Type'] || r['Product Type'] || 'Uncategorised',
+        purch: n(r['Per Unit Purchase Rate'] || r['Purchase Rate'] || 0),
+        sale:  n(r['Sale Rate (incl GST)'] || 0),
+        row:   r,
+      };
+    });
+    // SKUs that appear only in the movement sheets still deserve a filter entry
+    [...SALES, ...ADDITIONS].forEach(r => {
+      const s = r['SKU']; if(!s || SKUMAP[s]) return;
+      SKUMAP[s] = {name: r['Item Name'] || r['Item'] || '', cat:'Uncategorised', purch:0, sale:0, row:null};
+    });
+
     document.getElementById('rt').textContent =
       'Updated ' + new Date().toLocaleTimeString('en-IN', {hour:'2-digit',minute:'2-digit'});
 
+    initFilterUI();
+    renderChips();
     renderAll();
     document.getElementById('loading').style.display = 'none';
     document.getElementById('app').style.display = 'block';
@@ -615,6 +908,7 @@ function renderAll() {
   renderMovement();
   renderPayouts();
   renderReorder();
+  updateModeBanner();
 }
 
 // ── INVENTORY HELPERS ─────────────────────────────────────────────────────────
@@ -625,9 +919,9 @@ function gdBal(row, gi) {
 }
 function totBal(row) { return n(row['Total Stock Balance']); }
 function sbadge(v) {
-  if (v<=0) return `<span class="badge badge-zero">0</span>`;
-  if (v<=5) return `<span class="badge badge-low">${v}</span>`;
-  return `<span class="badge badge-ok">${v}</span>`;
+  if (v <= 0)  return `<span class="badge b-zero">0</span>`;
+  if (v <= 5)  return `<span class="badge b-low">${v}</span>`;
+  return `<span class="badge b-ok">${v}</span>`;
 }
 function itemInfo(row) {
   const name  = row['Item Name'] || '';
@@ -637,35 +931,96 @@ function itemInfo(row) {
   const size  = [sizeW, sizeL].filter(s => s && s !== 'N/A').join(' × ');
   return { name, desc, size };
 }
+function kpiHTML(list, small){
+  return list.map(k=>`<div class="kpi ${k.cls}"><div class="kpi-icon">${k.icon}</div><div class="kpi-label">${k.label}</div><div class="kpi-value"${small?' style="font-size:20px"':''}>${k.value}</div><div class="kpi-sub">${k.sub}</div></div>`).join('');
+}
+function emptyRow(cols, icon, msg){
+  return `<tr><td colspan="${cols}"><div class="empty"><div class="ei">${icon}</div><p>${msg}</p></div></td></tr>`;
+}
+function barChartHTML(buckets, series){
+  // series: [{key, cls}, {key, cls}] against buckets.values = [{a,b}]
+  const maxV = Math.max(...buckets.values.map(v=>Math.max(v.a, v.b)), 1);
+  const CH = 100;
+  const step = buckets.count > 32 ? Math.ceil(buckets.count/16) : 1;
+  return buckets.labels.map((lbl,i)=>{
+    const v = buckets.values[i];
+    return `<div class="bar-group" title="${lbl}&#10;${series[0].name}: ${series[0].fmt(v.a)}&#10;${series[1].name}: ${series[1].fmt(v.b)}">
+      <div class="bar-pair">
+        <div class="bar ${series[0].cls}" style="height:${Math.round(v.a/maxV*CH)}px"></div>
+        <div class="bar ${series[1].cls}" style="height:${Math.round(v.b/maxV*CH)}px"></div>
+      </div>
+      <div class="bar-lbl">${i%step===0?lbl:'&nbsp;'}</div>
+    </div>`;
+  }).join('');
+}
 
 // ── TAB 1: LIVE STOCK ─────────────────────────────────────────────────────────
 function renderLiveStock() {
-  const total = INV.reduce((s,r) => s+Math.max(0,totBal(r)), 0);
-  const oos   = INV.filter(r => totBal(r)<=0).length;
-  const low   = INV.filter(r => totBal(r)>0 && totBal(r)<=5).length;
-  const ok    = INV.filter(r => totBal(r)>5).length;
+  return periodMode() ? renderLiveStockPeriod() : renderLiveStockSnapshot();
+}
 
-  document.getElementById('ls-sub').innerHTML = `&nbsp;·&nbsp; ${INV.length} SKUs`;
-  document.getElementById('ls-kpis').innerHTML = [
+function renderLiveStockSnapshot(){
+  const rowsAll = fINV();
+  const total = rowsAll.reduce((s,r) => s+Math.max(0,totBal(r)), 0);
+  const oos   = rowsAll.filter(r => totBal(r)<=0).length;
+  const low   = rowsAll.filter(r => totBal(r)>0 && totBal(r)<=5).length;
+  const ok    = rowsAll.filter(r => totBal(r)>5).length;
+
+  document.getElementById('ls-sub').innerHTML = `&nbsp;·&nbsp; ${rowsAll.length} SKUs · live snapshot`;
+  document.getElementById('ls-kpis').innerHTML = kpiHTML([
     {cls:'sage', icon:'📦', label:'Total Units', value:total.toLocaleString('en-IN'), sub:'All godowns'},
     {cls:'terra', icon:'🔴', label:'Out of Stock', value:oos, sub:'Need reorder'},
     {cls:'amber', icon:'🟡', label:'Low Stock', value:low, sub:'1–5 units'},
     {cls:'gold',  icon:'✅', label:'Well Stocked', value:ok, sub:'Above 5 units'},
-  ].map(k => `<div class="kpi ${k.cls}"><div class="kpi-icon">${k.icon}</div><div class="kpi-label">${k.label}</div><div class="kpi-value">${k.value}</div><div class="kpi-sub">${k.sub}</div></div>`).join('');
+  ]);
 
-  const pills = ['All',...GODOWNS];
-  document.getElementById('gd-pills').innerHTML = pills.map(g => {
-    const cnt = g==='All' ? INV.filter(r=>totBal(r)>0).length
-      : INV.filter(r=>gdBal(r,GODOWNS.indexOf(g))>0).length;
-    return `<div class="pill ${g===activeGd?'active':''}" onclick="setGd('${g}')">
-      ${g}<span class="pill-c">${cnt}</span>
-    </div>`;
+  document.getElementById('gd-pills').innerHTML = ['All',...GODOWNS].map(g => {
+    const cnt = g==='All' ? rowsAll.filter(r=>totBal(r)>0).length
+      : rowsAll.filter(r=>gdBal(r,GODOWNS.indexOf(g))>0).length;
+    return `<div class="pill ${g===activeGd?'active':''}" onclick="setGd('${g}')">${g}<span class="pill-c">${cnt}</span></div>`;
   }).join('');
 
-  const cats = [...new Set(INV.map(r=>r['Item Type']||r['Product Type']||'').filter(Boolean))].sort();
-  const sel = document.getElementById('ls-cat');
-  sel.innerHTML = '<option value="">All Categories</option>' + cats.map(c=>`<option>${c}</option>`).join('');
+  document.getElementById('ls-thead').innerHTML = `<tr>
+    <th onclick="srt('stock-table',0)">Item</th>
+    <th onclick="srt('stock-table',1)">SKU</th>
+    ${GODOWNS.map((g,i)=>`<th onclick="srt('stock-table',${i+2})">${g}</th>`).join('')}
+    <th onclick="srt('stock-table',8)">Total</th>
+    <th onclick="srt('stock-table',9)">Sale Rate</th>
+  </tr>`;
+  renderStockTable();
+}
 
+function renderLiveStockPeriod(){
+  const mv = movementBySku(activeGd);
+  const unitsIn  = mv.reduce((s,r)=>s+r.qtyIn,0);
+  const unitsOut = mv.reduce((s,r)=>s+r.qtyOut,0);
+  const net      = unitsIn - unitsOut;
+  const moved    = mv.filter(r=>r.qtyIn||r.qtyOut).length;
+
+  document.getElementById('ls-sub').innerHTML = `&nbsp;·&nbsp; movement · ${esc(rangeLabel())}`;
+  document.getElementById('ls-kpis').innerHTML = kpiHTML([
+    {cls:'sage',  icon:'↗', label:'Units In',   value:unitsIn.toLocaleString('en-IN'),  sub:'Stock received'},
+    {cls:'terra', icon:'↘', label:'Units Out',  value:unitsOut.toLocaleString('en-IN'), sub:'Stock sold'},
+    {cls: net>=0?'gold':'maroon', icon: net>=0?'📈':'📉', label:'Net Change', value:(net>=0?'+':'')+net.toLocaleString('en-IN'), sub:'In minus out'},
+    {cls:'slate', icon:'🔀', label:'SKUs Moved', value:moved, sub:'With activity'},
+  ]);
+
+  const allMv = movementBySku('All');
+  document.getElementById('gd-pills').innerHTML = ['All',...GODOWNS].map(g => {
+    const cnt = g==='All' ? allMv.filter(r=>r.qtyIn||r.qtyOut).length
+                          : movementBySku(g).filter(r=>r.qtyIn||r.qtyOut).length;
+    return `<div class="pill ${g===activeGd?'active':''}" onclick="setGd('${g}')">${g}<span class="pill-c">${cnt}</span></div>`;
+  }).join('');
+
+  document.getElementById('ls-thead').innerHTML = `<tr>
+    <th onclick="srt('stock-table',0)">Item</th>
+    <th onclick="srt('stock-table',1)">SKU</th>
+    <th onclick="srt('stock-table',2)">Category</th>
+    <th onclick="srt('stock-table',3)">Units In</th>
+    <th onclick="srt('stock-table',4)">Units Out</th>
+    <th onclick="srt('stock-table',5)">Net Change</th>
+    <th onclick="srt('stock-table',6)">Stock Now</th>
+  </tr>`;
   renderStockTable();
 }
 
@@ -673,90 +1028,107 @@ function setGd(g) { activeGd = g; renderLiveStock(); }
 
 function renderStockTable() {
   const search = (document.getElementById('ls-search').value||'').toLowerCase();
-  const catF   = document.getElementById('ls-cat').value;
   const lvlF   = document.getElementById('ls-level').value;
 
-  const rows = INV.filter(row => {
+  if(periodMode()){
+    const rows = movementBySku(activeGd)
+      .filter(r => r.qtyIn || r.qtyOut)
+      .filter(r => !search || r.name.toLowerCase().includes(search) || (r.sku||'').toLowerCase().includes(search))
+      .filter(r => {
+        if(!lvlF) return true;
+        const b = curBal(r.sku);
+        return (lvlF==='zero'&&b<=0)||(lvlF==='low'&&b>0&&b<=5)||(lvlF==='ok'&&b>5);
+      })
+      .sort((a,b)=>b.qtyOut-a.qtyOut || b.qtyIn-a.qtyIn);
+
+    document.getElementById('ls-count').textContent = `${rows.length} items moved`;
+    document.getElementById('ls-tbody').innerHTML = rows.map(r=>{
+      const net = r.qtyIn - r.qtyOut;
+      return `<tr>
+        <td><div class="nm">${esc(r.name||'—')}</div><div class="ds">${r.txIn} in · ${r.txOut} out</div></td>
+        <td><span class="sku">${esc(r.sku)}</span></td>
+        <td>${esc(r.cat)}</td>
+        <td style="text-align:center;color:var(--sage);font-weight:600">${r.qtyIn||'—'}</td>
+        <td style="text-align:center;color:var(--terra);font-weight:600">${r.qtyOut||'—'}</td>
+        <td style="text-align:center;font-weight:700;color:${net>=0?'var(--sage)':'var(--maroon)'}">${net>=0?'+':''}${net}</td>
+        <td style="text-align:center">${sbadge(curBal(r.sku))}</td>
+      </tr>`;
+    }).join('') || emptyRow(7,'📭','No stock moved in this range');
+    return;
+  }
+
+  const rows = fINV().filter(row => {
     const info = itemInfo(row);
     const sku  = row['SKU']||'';
-    const cat  = row['Item Type']||row['Product Type']||'';
     const ms   = !search || info.name.toLowerCase().includes(search) || info.desc.toLowerCase().includes(search) || sku.toLowerCase().includes(search);
-    const mc   = !catF || cat === catF;
     const stock = activeGd==='All' ? totBal(row) : gdBal(row, GODOWNS.indexOf(activeGd));
     const ml = !lvlF || (lvlF==='zero'&&stock<=0)||(lvlF==='low'&&stock>0&&stock<=5)||(lvlF==='ok'&&stock>5);
-    return ms && mc && ml;
+    return ms && ml;
   });
 
   document.getElementById('ls-count').textContent = `${rows.length} items`;
   document.getElementById('ls-tbody').innerHTML = rows.map(row => {
     const info = itemInfo(row);
     const bals = GODOWNS.map((_,gi) => gdBal(row,gi));
-    const tot  = totBal(row);
     const sr   = n(row['Sale Rate (incl GST)']);
     return `<tr>
-      <td><div class="nm">${info.name}</div><div class="ds">${info.desc}${info.size?' · '+info.size:''}</div></td>
-      <td><span class="sku">${row['SKU']||''}</span></td>
+      <td><div class="nm">${esc(info.name)}</div><div class="ds">${esc(info.desc)}${info.size?' · '+esc(info.size):''}</div></td>
+      <td><span class="sku">${esc(row['SKU']||'')}</span></td>
       ${bals.map(b=>`<td style="text-align:center">${sbadge(b)}</td>`).join('')}
-      <td style="text-align:center"><strong>${sbadge(tot)}</strong></td>
+      <td style="text-align:center"><strong>${sbadge(totBal(row))}</strong></td>
       <td style="text-align:right">${sr?fmt(sr):'—'}</td>
     </tr>`;
-  }).join('') || `<tr><td colspan="10"><div class="empty"><div class="ei">📭</div><p>No items match</p></div></td></tr>`;
+  }).join('') || emptyRow(10,'📭','No items match');
 }
 
 // ── TAB 2: BILLING & PAYMENTS ─────────────────────────────────────────────────
 function renderBilling() {
   const now = new Date();
+  const src = fSALES();
 
-  // Compute per-row values
-  const rows = SALES.map(r => {
+  const rows = src.map(r => {
     const totalSale = n(r['Actual Total Selling Price incl GST']);
     const paid      = n(r['Payment Made']);
     const due       = n(r['Payment Due']);
-    const gst       = totalSale / 1.18 * 0.18;
-    const baseAmt   = totalSale / 1.18;
     const dueDate   = parseDate(r['Payment Due Date']);
-    const saleDate  = parseDate(r['Date']);
-    const daysOd    = dueDate ? daysBetween(dueDate, now) : null;
-
-    let payStatus = 'paid';
-    if (due > 0 && paid > 0) payStatus = 'part';
-    else if (due > 0 && paid === 0) payStatus = 'due';
-
-    return { ...r, totalSale, paid, due, gst, baseAmt, dueDate, saleDate, daysOd, payStatus };
+    return Object.assign({}, r, {
+      totalSale, paid, due,
+      gst:     totalSale/1.18*0.18,
+      baseAmt: totalSale/1.18,
+      daysOd:  dueDate ? daysBetween(dueDate, now) : null,
+      payStatus: due<=0 && paid>0 ? 'paid' : paid>0 && due>0 ? 'part' : 'due',
+    });
   });
-
   _billRows = rows;
 
-  // KPIs
-  const totalRev    = rows.reduce((s,r)=>s+r.totalSale,0);
-  const totalColl   = rows.reduce((s,r)=>s+r.paid,0);
-  const totalDue    = rows.reduce((s,r)=>s+r.due,0);
-  const totalGST    = rows.reduce((s,r)=>s+r.gst,0);
-  const todayISO    = now.toISOString().slice(0,10);
-  const todayRev    = rows.filter(r=>toISO(r['Date'])===todayISO).reduce((s,r)=>s+r.totalSale,0);
-  const thisMonthR  = rows.filter(r=>{
-    const dt=parseDate(r['Date']); return dt&&dt.getMonth()===now.getMonth()&&dt.getFullYear()===now.getFullYear();
-  }).reduce((s,r)=>s+r.totalSale,0);
+  const totalRev  = rows.reduce((s,r)=>s+r.totalSale,0);
+  const totalColl = rows.reduce((s,r)=>s+r.paid,0);
+  const totalDue  = rows.reduce((s,r)=>s+r.due,0);
+  const totalGST  = rows.reduce((s,r)=>s+r.gst,0);
+  const todayISO  = isoOf(startOfDay(now));
+  const todayRev  = rows.filter(r=>toISO(r['Date'])===todayISO).reduce((s,r)=>s+r.totalSale,0);
+  const monthRev  = rows.filter(r=>{const d=parseDate(r['Date']); return d&&d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();}).reduce((s,r)=>s+r.totalSale,0);
 
+  document.getElementById('bill-sub').innerHTML = `&nbsp;·&nbsp; ${esc(rangeLabel())} · ${rows.length} transactions`;
   document.getElementById('bill-kpis').innerHTML = [
-    {cls:'sage',  icon:'💰', label:"Total Revenue",     value:fmt(totalRev),   sub:`${rows.length} transactions`},
-    {cls:'gold',  icon:'✅', label:"Collected",          value:fmt(totalColl),  sub:`${Math.round(totalColl/totalRev*100)||0}% of revenue`},
-    {cls:'maroon',icon:'⏳', label:"Outstanding",        value:fmt(totalDue),   sub:`${rows.filter(r=>r.due>0).length} invoices`},
-    {cls:'terra', icon:'📅', label:"Today's Sales",      value:fmt(todayRev),   sub:"Incl GST"},
-    {cls:'amber', icon:'🗓', label:"This Month",         value:fmt(thisMonthR), sub:new Date().toLocaleString('en-IN',{month:'long'})},
-    {cls:'slate', icon:'🏛', label:"GST Collected",      value:fmt(totalGST),   sub:"@18% on sales"},
-  ].map(k=>`<div class="sum-card"><div style="font-size:20px;margin-bottom:6px">${k.icon}</div><div class="sum-label">${k.label}</div><div class="sum-value" style="font-size:22px">${k.value}</div><div class="sum-sub">${k.sub}</div></div>`).join('');
+    {label:'Total Revenue',   value:fmt(totalRev),   color:'var(--ink)'},
+    {label:'Collected',       value:fmt(totalColl),  color:'var(--sage)'},
+    {label:'Outstanding',     value:fmt(totalDue),   color:'var(--maroon)'},
+    {label:'GST Component',   value:fmt(totalGST),   color:'var(--slate)'},
+    {label:'Today',           value:fmt(todayRev),   color:'var(--terra)'},
+    {label:'This Month',      value:fmt(monthRev),   color:'var(--amber)'},
+  ].map(k=>`<div class="sum-card"><div class="sum-label">${k.label}</div><div class="sum-value" style="color:${k.color}">${k.value}</div></div>`).join('');
 
-  // Revenue by godown bar
+  // Revenue by godown
   const gdRevMap = {};
   rows.forEach(r => { const g=r['Godown']||'Unknown'; gdRevMap[g]=(gdRevMap[g]||0)+r.totalSale; });
   const gdEntries = Object.entries(gdRevMap).sort((a,b)=>b[1]-a[1]);
   const maxGd = gdEntries[0]?.[1]||1;
   document.getElementById('rev-godown').innerHTML = gdEntries.map(([g,v],i)=>`
     <div class="bar-row">
-      <div class="bar-hdr"><span style="font-weight:500">${g}</span><span style="color:var(--ink-mute)">${fmt(v)}</span></div>
+      <div class="bar-hdr"><span style="font-weight:500">${esc(g)}</span><span style="color:var(--ink-mute)">${fmt(v)}</span></div>
       <div class="bar-track"><div class="bar-fill" style="width:${Math.round(v/maxGd*100)}%;background:var(${COLOURS[i%COLOURS.length]})"></div></div>
-    </div>`).join('');
+    </div>`).join('') || `<div class="empty" style="padding:18px"><p>No sales in this range</p></div>`;
 
   // Payment methods
   const methMap = {};
@@ -765,67 +1137,50 @@ function renderBilling() {
   const maxM = methEntries[0]?.[1]||1;
   document.getElementById('pay-methods').innerHTML = methEntries.map(([m,v],i)=>`
     <div class="bar-row">
-      <div class="bar-hdr"><span style="font-weight:500">${m}</span><span style="color:var(--ink-mute)">${fmt(v)}</span></div>
+      <div class="bar-hdr"><span style="font-weight:500">${esc(m)}</span><span style="color:var(--ink-mute)">${fmt(v)}</span></div>
       <div class="bar-track"><div class="bar-fill" style="width:${Math.round(v/maxM*100)}%;background:var(${COLOURS[i%COLOURS.length]})"></div></div>
-    </div>`).join('');
+    </div>`).join('') || `<div class="empty" style="padding:18px"><p>No payments in this range</p></div>`;
 
-  // Method filter
   const methods = [...new Set(rows.map(r=>(r['Payment Method']||'').trim()).filter(Boolean))].sort();
-  document.getElementById('bill-method-filter').innerHTML =
-    '<option value="">All Methods</option>' + methods.map(m=>`<option>${m}</option>`).join('');
+  const mf = document.getElementById('bill-method-filter');
+  const keepM = mf.value;
+  mf.innerHTML = '<option value="">All Methods</option>' + methods.map(m=>`<option value="${esc(m)}"${keepM===m?' selected':''}>${esc(m)}</option>`).join('');
 
-  // Daily revenue chart (last 30 days)
-  const dayMap = {};
-  for (let d=29;d>=0;d--) {
-    const dt=new Date(now); dt.setDate(now.getDate()-d);
-    dayMap[dt.toISOString().slice(0,10)] = {coll:0,due:0};
-  }
-  rows.forEach(r => {
-    const key = toISO(r['Date']);
-    if (dayMap[key]) { dayMap[key].coll+=r.paid; dayMap[key].due+=r.due; }
+  // Revenue chart across the active range
+  const bk = makeBuckets();
+  bk.values = bk.keys.map(()=>({a:0,b:0}));
+  rows.forEach(r=>{
+    const i = bk.bucketOf(r['Date']);
+    if(i>=0){ bk.values[i].a += r.paid; bk.values[i].b += r.due; }
   });
-  const days = Object.entries(dayMap);
-  const maxV = Math.max(...days.map(([,v])=>Math.max(v.coll,v.due)),1);
-  const CH = 100;
-  document.getElementById('rev-chart').innerHTML = days.map(([date,vals])=>{
-    const ch = Math.round(vals.coll/maxV*CH);
-    const dh = Math.round(vals.due/maxV*CH);
-    return `<div class="bar-group" title="${date}: Collected ${fmt(vals.coll)}, Due ${fmt(vals.due)}">
-      <div class="bar-pair">
-        <div class="bar in-b"  style="height:${ch}px;background:var(--sage)"></div>
-        <div class="bar out-b" style="height:${dh}px;background:var(--amber)"></div>
-      </div>
-      <div class="bar-lbl">${date.slice(5).replace('-','/')}</div>
-    </div>`;
-  }).join('');
+  document.getElementById('rev-chart-title').textContent = `${bk.unitName} Revenue — ${rangeLabel()}`;
+  document.getElementById('rev-chart').innerHTML = barChartHTML(bk, [
+    {name:'Collected', cls:'in-b',  fmt:v=>fmt(v)},
+    {name:'Due',       cls:'out-b', fmt:v=>fmt(v)},
+  ]);
 
-  // Outstanding dues table
+  // Outstanding, grouped by challan
   const dueRows = rows.filter(r=>r.due>0).sort((a,b)=>(b.daysOd||0)-(a.daysOd||0));
-  document.getElementById('due-count').textContent = `${dueRows.length} outstanding`;
-
-  // Group by challan for dues
   const dueByChallan = {};
-  dueRows.forEach(r => {
+  dueRows.forEach(r=>{
     const c = r['Challan Number']||'—';
-    if (!dueByChallan[c]) dueByChallan[c] = {challan:c, client:r['Client Name']||'—', dueDate:r['Payment Due Date']||'', daysOd:r.daysOd, total:0, items:0};
-    dueByChallan[c].total += r.due;
-    dueByChallan[c].items++;
+    if(!dueByChallan[c]) dueByChallan[c]={challan:c, client:r['Client Name']||'—', dueDate:r['Payment Due Date']||'', due:0, items:0, daysOd:r.daysOd};
+    dueByChallan[c].due += r.due; dueByChallan[c].items++;
   });
-
-  document.getElementById('due-tbody').innerHTML = Object.values(dueByChallan)
-    .sort((a,b)=>(b.daysOd||0)-(a.daysOd||0))
-    .map(c => {
-      const od = c.daysOd;
-      const odStr = od===null?'—':od>0?`<span style="color:var(--maroon);font-weight:600">${od}d overdue</span>`:`<span style="color:var(--amber)">Due in ${Math.abs(od)}d</span>`;
-      return `<tr>
-        <td>${c.dueDate||'—'}</td>
-        <td><span class="sku">${c.challan}</span></td>
-        <td style="font-weight:500">${c.client}</td>
-        <td style="color:var(--ink-mute);font-size:12px">${c.items} line item${c.items>1?'s':''}</td>
-        <td style="font-weight:700;color:var(--maroon)">${fmt(c.total)}</td>
-        <td>${odStr}</td>
-      </tr>`;
-    }).join('') || `<tr><td colspan="6"><div class="empty" style="padding:24px"><div class="ei">✅</div><p>No outstanding payments</p></div></td></tr>`;
+  const dueList = Object.values(dueByChallan).sort((a,b)=>(b.daysOd||0)-(a.daysOd||0));
+  document.getElementById('due-count').textContent = `${dueList.length} challans · ${fmt(totalDue)}`;
+  document.getElementById('due-tbody').innerHTML = dueList.map(c=>{
+    const od = c.daysOd;
+    const odStr = od===null?'—':od>0?`<span style="color:var(--maroon);font-weight:600">${od}d overdue</span>`:`<span style="color:var(--amber)">Due in ${Math.abs(od)}d</span>`;
+    return `<tr>
+      <td>${esc(c.dueDate||'—')}</td>
+      <td><span class="sku">${esc(c.challan)}</span></td>
+      <td><div class="nm">${esc(c.client)}</div></td>
+      <td style="text-align:center">${c.items}</td>
+      <td style="text-align:right;font-weight:700;color:var(--maroon)">${fmt(c.due)}</td>
+      <td>${odStr}</td>
+    </tr>`;
+  }).join('') || emptyRow(6,'✅','Nothing outstanding in this range');
 
   filterBillingTable();
 }
@@ -838,100 +1193,154 @@ function filterBillingTable() {
   const rows = _billRows.filter(r => {
     const ms = !search || (r['Client Name']||'').toLowerCase().includes(search)
       || (r['Challan Number']||'').toLowerCase().includes(search)
-      || (r['Item']||r['Item Name']||'').toLowerCase().includes(search)
+      || (r['Item Name']||'').toLowerCase().includes(search)
       || (r['SKU']||'').toLowerCase().includes(search);
     const mp = !payF || r.payStatus===payF;
     const mm = !methF || (r['Payment Method']||'').trim()===methF;
     return ms && mp && mm;
   });
 
-  document.getElementById('bill-count').textContent = `${rows.length} rows`;
-
-  document.getElementById('bill-tbody').innerHTML = rows.map(r => {
-    const method = (r['Payment Method']||'').trim().toLowerCase();
-    let mClass = 'method-other';
-    if (method.includes('gpay')||method.includes('upi')||method.includes('g pay')) mClass='method-gpay';
-    else if (method.includes('cash')) mClass='method-cash';
-    else if (method.includes('bank')||method.includes('transfer')||method.includes('neft')) mClass='method-bank';
-    else if (method.includes('credit')) mClass='method-credit';
-
-    let statusBadge = '';
-    if (r.payStatus==='paid') statusBadge='<span class="badge badge-paid">Paid</span>';
-    else if (r.payStatus==='part') statusBadge='<span class="badge badge-part">Part Paid</span>';
-    else statusBadge='<span class="badge badge-due">Due</span>';
-
-    const discount = n(r['Discount offered']);
-    const mrp      = n(r['Original Unit MRP (Incl GST)']);
+  document.getElementById('bill-count').textContent = `${rows.length} transactions`;
+  document.getElementById('bill-tbody').innerHTML = rows.map(r=>{
+    const method = (r['Payment Method']||'').trim();
+    const badge = r.payStatus==='paid' ? `<span class="badge b-ok">Paid</span>`
+      : r.payStatus==='part' ? `<span class="badge b-low">Partial</span>`
+      : `<span class="badge b-zero">Due</span>`;
     const unitPrice = n(r['Actual Selling Price (per unit incl GST)']);
-
     return `<tr>
-      <td>${r['Date']||'—'}</td>
-      <td><span class="sku">${r['Challan Number']||'—'}</span></td>
-      <td><div class="nm">${r['Client Name']||'Walk-in'}</div><div class="ds">${r['Client Phone Number']||''}</div></td>
-      <td><div class="nm" style="font-size:12px">${(r['Item']||r['Item Name']||'').substring(0,40)}</div><span class="sku">${r['SKU']||''}</span></td>
-      <td>${r['Godown']||'—'}</td>
-      <td style="text-align:center;font-weight:600">${r['Qty Sold']||'—'}</td>
-      <td style="text-align:right">${unitPrice?fmt(unitPrice):'—'}${discount>0?`<div style="font-size:10px;color:var(--sage)">-${discount}% disc</div>`:''}</td>
+      <td>${esc(r['Date']||'—')}</td>
+      <td><span class="sku">${esc(r['Challan Number']||'—')}</span></td>
+      <td><div class="nm">${esc(r['Client Name']||'—')}</div><div class="ds">${esc(r['Client Phone Number']||'')}</div></td>
+      <td><div class="nm" style="font-size:12px">${esc((r['Item Name']||'').substring(0,40))}</div><span class="sku">${esc(r['SKU']||'')}</span></td>
+      <td>${esc(r['Godown']||'—')}</td>
+      <td style="text-align:center;font-weight:600">${n(r['Qty Sold'])||'—'}</td>
+      <td style="text-align:right">${unitPrice?fmt(unitPrice):'—'}</td>
       <td style="text-align:right;font-weight:600">${fmt(r.totalSale)}</td>
-      <td style="text-align:right;color:var(--sage);font-weight:600">${r.paid>0?fmt(r.paid):'—'}</td>
-      <td style="text-align:right;color:var(--maroon);font-weight:600">${r.due>0?fmt(r.due):'—'}</td>
-      <td><span class="method ${mClass}">${r['Payment Method']||'—'}</span></td>
-      <td>${statusBadge}</td>
+      <td style="text-align:right;color:var(--sage)">${r.paid?fmt(r.paid):'—'}</td>
+      <td style="text-align:right;color:var(--maroon);font-weight:600">${r.due?fmt(r.due):'—'}</td>
+      <td style="font-size:12px">${esc(method||'—')}</td>
+      <td>${badge}</td>
     </tr>`;
-  }).join('') || `<tr><td colspan="12"><div class="empty"><div class="ei">🧾</div><p>No matching transactions</p></div></td></tr>`;
+  }).join('') || emptyRow(12,'📭','No transactions match');
 }
 
 // ── TAB 3: MONEY IN STOCK ─────────────────────────────────────────────────────
 function renderMoney() {
+  return periodMode() ? renderMoneyPeriod() : renderMoneySnapshot();
+}
+
+function renderMoneySnapshot(){
+  const rowsAll = fINV();
   let totalCost=0, totalRev=0;
-  INV.forEach(r => {
+  rowsAll.forEach(r => {
     const bal = Math.max(0,totBal(r));
     totalCost += bal * n(r['Per Unit Purchase Rate']||r['Purchase Rate']||0);
     totalRev  += bal * n(r['Sale Rate (incl GST)']||0);
   });
   const margin = totalRev - totalCost;
 
-  document.getElementById('money-kpis').innerHTML = [
+  document.getElementById('money-sub').innerHTML = `&nbsp;·&nbsp; live valuation`;
+  document.getElementById('money-kpis').innerHTML = kpiHTML([
     {cls:'terra', icon:'💸', label:'Capital Locked', value:fmt(totalCost), sub:'Purchase value in stock'},
     {cls:'sage',  icon:'📈', label:'Revenue Potential', value:fmt(totalRev), sub:'If all stock sold today'},
     {cls:'gold',  icon:'✨', label:'Gross Margin Potential', value:fmt(margin), sub:totalRev>0?`${Math.round(margin/totalRev*100)}% margin`:'—'},
-  ].map(k=>`<div class="kpi ${k.cls}"><div class="kpi-icon">${k.icon}</div><div class="kpi-label">${k.label}</div><div class="kpi-value" style="font-size:20px">${k.value}</div><div class="kpi-sub">${k.sub}</div></div>`).join('');
+  ], true);
 
-  // Category bars
   const catMap={};
-  INV.forEach(r=>{
-    const cat=r['Item Type']||r['Product Type']||'Other';
+  rowsAll.forEach(r=>{
     const v=Math.max(0,totBal(r))*n(r['Per Unit Purchase Rate']||r['Purchase Rate']||0);
-    catMap[cat]=(catMap[cat]||0)+v;
+    catMap[catOfRow(r)]=(catMap[catOfRow(r)]||0)+v;
   });
-  const catE=Object.entries(catMap).sort((a,b)=>b[1]-a[1]);
-  const maxC=catE[0]?.[1]||1;
-  document.getElementById('money-cat').innerHTML=catE.map(([c,v],i)=>`
-    <div class="bar-row">
-      <div class="bar-hdr"><span style="font-weight:500">${c}</span><span style="color:var(--ink-mute)">${fmt(v)}</span></div>
-      <div class="bar-track"><div class="bar-fill" style="width:${Math.round(v/maxC*100)}%;background:var(${COLOURS[i%COLOURS.length]})"></div></div>
-    </div>`).join('');
+  document.getElementById('money-cat').innerHTML = barsHTML(catMap, 'No stock value');
 
-  // Godown bars
   const gdMap={};
-  GODOWNS.forEach((g,gi)=>{
-    let v=0; INV.forEach(r=>{ v+=Math.max(0,gdBal(r,gi))*n(r['Per Unit Purchase Rate']||r['Purchase Rate']||0); });
-    gdMap[g]=v;
-  });
-  const gdE=Object.entries(gdMap).sort((a,b)=>b[1]-a[1]);
-  const maxG=gdE[0]?.[1]||1;
-  document.getElementById('money-gd').innerHTML=gdE.map(([g,v],i)=>`
-    <div class="bar-row">
-      <div class="bar-hdr"><span style="font-weight:500">${g}</span><span style="color:var(--ink-mute)">${fmt(v)}</span></div>
-      <div class="bar-track"><div class="bar-fill" style="width:${Math.round(v/maxG*100)}%;background:var(${COLOURS[i%COLOURS.length]})"></div></div>
-    </div>`).join('');
+  GODOWNS.forEach((g,gi)=>{ let v=0; rowsAll.forEach(r=>{ v+=Math.max(0,gdBal(r,gi))*n(r['Per Unit Purchase Rate']||r['Purchase Rate']||0); }); gdMap[g]=v; });
+  document.getElementById('money-gd').innerHTML = barsHTML(gdMap, 'No stock value');
 
+  document.getElementById('money-thead').innerHTML = `<tr>
+    <th onclick="srt('money-table',0)">Item</th>
+    <th onclick="srt('money-table',1)">SKU</th>
+    <th onclick="srt('money-table',2)">Units</th>
+    <th onclick="srt('money-table',3)">Purchase Rate</th>
+    <th onclick="srt('money-table',4)">Sale Rate</th>
+    <th onclick="srt('money-table',5)">Stock Cost</th>
+    <th onclick="srt('money-table',6)">Revenue Potential</th>
+    <th onclick="srt('money-table',7)">Margin</th>
+  </tr>`;
   renderMoneyTable();
+}
+
+function renderMoneyPeriod(){
+  const mv = movementBySku('All');
+  const valIn  = mv.reduce((s,r)=>s+r.valIn,0);
+  const valOut = mv.reduce((s,r)=>s+r.valOut,0);
+  const cogs   = mv.reduce((s,r)=>s+r.qtyOut*purchRate(r.sku),0);
+  const realised = valOut - cogs;
+  const gst = valOut/1.18*0.18;
+
+  document.getElementById('money-sub').innerHTML = `&nbsp;·&nbsp; money moved · ${esc(rangeLabel())}`;
+  document.getElementById('money-kpis').innerHTML = kpiHTML([
+    {cls:'terra', icon:'💸', label:'Spent on Stock', value:fmt(valIn),  sub:'Purchases received'},
+    {cls:'sage',  icon:'📈', label:'Sales Value',    value:fmt(valOut), sub:'Incl GST'},
+    {cls:'gold',  icon:'✨', label:'Realised Margin', value:fmt(realised), sub:valOut>0?`${Math.round(realised/valOut*100)}% of sales`:'—'},
+    {cls:'slate', icon:'🧾', label:'GST Component',  value:fmt(gst),    sub:'Within sales value'},
+  ], true);
+
+  const catIn={}, catOut={};
+  mv.forEach(r=>{ catIn[r.cat]=(catIn[r.cat]||0)+r.valIn; catOut[r.cat]=(catOut[r.cat]||0)+r.valOut; });
+  document.getElementById('money-cat').innerHTML = barsHTML(catOut, 'No sales in this range');
+
+  const gdOut={};
+  fSALES().forEach(r=>{ const g=r['Godown']||'Unknown'; gdOut[g]=(gdOut[g]||0)+n(r['Actual Total Selling Price incl GST']); });
+  document.getElementById('money-gd').innerHTML = barsHTML(gdOut, 'No sales in this range');
+
+  document.getElementById('money-thead').innerHTML = `<tr>
+    <th onclick="srt('money-table',0)">Item</th>
+    <th onclick="srt('money-table',1)">SKU</th>
+    <th onclick="srt('money-table',2)">Units In</th>
+    <th onclick="srt('money-table',3)">Spent</th>
+    <th onclick="srt('money-table',4)">Units Out</th>
+    <th onclick="srt('money-table',5)">Sales Value</th>
+    <th onclick="srt('money-table',6)">Realised Margin</th>
+  </tr>`;
+  renderMoneyTable();
+}
+
+function barsHTML(map, emptyMsg){
+  const e = Object.entries(map).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
+  const max = e[0]?.[1]||1;
+  return e.map(([k,v],i)=>`
+    <div class="bar-row">
+      <div class="bar-hdr"><span style="font-weight:500">${esc(k)}</span><span style="color:var(--ink-mute)">${fmt(v)}</span></div>
+      <div class="bar-track"><div class="bar-fill" style="width:${Math.round(v/max*100)}%;background:var(${COLOURS[i%COLOURS.length]})"></div></div>
+    </div>`).join('') || `<div class="empty" style="padding:18px"><p>${emptyMsg}</p></div>`;
 }
 
 function renderMoneyTable() {
   const search=(document.getElementById('money-search').value||'').toLowerCase();
-  const rows=INV.filter(r=>{
+
+  if(periodMode()){
+    const rows = movementBySku('All')
+      .filter(r=>r.qtyIn||r.qtyOut)
+      .filter(r=>!search||r.name.toLowerCase().includes(search)||(r.sku||'').toLowerCase().includes(search))
+      .sort((a,b)=>b.valOut-a.valOut||b.valIn-a.valIn);
+    document.getElementById('money-count').textContent=`${rows.length} items`;
+    document.getElementById('money-tbody').innerHTML=rows.map(r=>{
+      const mgn = r.valOut - r.qtyOut*purchRate(r.sku);
+      return `<tr>
+        <td><div class="nm">${esc(r.name||'—')}</div><div class="ds">${esc(r.cat)}</div></td>
+        <td><span class="sku">${esc(r.sku)}</span></td>
+        <td style="text-align:center">${r.qtyIn||'—'}</td>
+        <td style="text-align:right;color:var(--terra);font-weight:600">${r.valIn?fmt(r.valIn):'—'}</td>
+        <td style="text-align:center">${r.qtyOut||'—'}</td>
+        <td style="text-align:right;color:var(--sage);font-weight:600">${r.valOut?fmt(r.valOut):'—'}</td>
+        <td style="text-align:right;font-weight:600;color:${mgn>=0?'var(--sage)':'var(--maroon)'}">${r.qtyOut?fmt(mgn):'—'}</td>
+      </tr>`;
+    }).join('') || emptyRow(7,'📭','Nothing moved in this range');
+    return;
+  }
+
+  const rows=fINV().filter(r=>{
     const info=itemInfo(r);
     return (!search||info.name.toLowerCase().includes(search)||(r['SKU']||'').toLowerCase().includes(search))
       && Math.max(0,totBal(r))>0;
@@ -946,52 +1355,47 @@ function renderMoneyTable() {
     const bal=Math.max(0,totBal(r));
     const pr=n(r['Per Unit Purchase Rate']||r['Purchase Rate']||0);
     const sr=n(r['Sale Rate (incl GST)']||0);
-    const cost=bal*pr, rev=bal*sr;
     const mgn=pr&&sr?Math.round((sr-pr)/sr*100):null;
     return `<tr>
-      <td><div class="nm">${info.name}</div><div class="ds">${info.desc}</div></td>
-      <td><span class="sku">${r['SKU']||''}</span></td>
+      <td><div class="nm">${esc(info.name)}</div><div class="ds">${esc(info.desc)}</div></td>
+      <td><span class="sku">${esc(r['SKU']||'')}</span></td>
       <td style="text-align:center">${bal}</td>
       <td style="text-align:right">${pr?fmt(pr):'—'}</td>
       <td style="text-align:right">${sr?fmt(sr):'—'}</td>
-      <td style="text-align:right;font-weight:600">${fmt(cost)}</td>
-      <td style="text-align:right;color:var(--sage);font-weight:600">${fmt(rev)}</td>
+      <td style="text-align:right;font-weight:600">${fmt(bal*pr)}</td>
+      <td style="text-align:right;color:var(--sage);font-weight:600">${fmt(bal*sr)}</td>
       <td style="text-align:center">${mgn!==null?`<span style="color:var(--sage);font-weight:600">${mgn}%</span>`:'—'}</td>
     </tr>`;
-  }).join('') || `<tr><td colspan="8"><div class="empty"><div class="ei">📭</div><p>No items</p></div></td></tr>`;
+  }).join('') || emptyRow(8,'📭','No items');
 }
 
 function filterMoneyTable() { renderMoneyTable(); }
 
-// ── PAYOUTS TAB (Stock Additions = purchase payouts) ─────────────────────────
+// ── TAB 4: PAYOUTS ────────────────────────────────────────────────────────────
 function renderPayouts() {
-  const rateMap={};
-  INV.forEach(r=>{if(r['SKU'])rateMap[r['SKU']]=n(r['Per Unit Purchase Rate']||0);});
-
-  const rows = ADDITIONS.map(r=>({
+  const rows = fADD().map(r=>({
     orderDate:   r['Order Placed Date']||'',
     invoiceDate: r['Invoice Date']||'',
     delivDate:   r['Delivery Date']||'',
     dueDate:     r['Payment Due Date']||'',
     item:        r['Item']||r['Item Name']||'',
     sku:         r['SKU']||'',
-    itemName:    r['Item Name']||'',
     godown:      r['Godown']||'',
     qty:         n(r['Qty Added']),
-    rate:        rateMap[r['SKU']]||0,
-    total:       n(r['Qty Added'])*(rateMap[r['SKU']]||0),
+    rate:        purchRate(r['SKU']),
+    total:       n(r['Qty Added'])*purchRate(r['SKU']),
     notes:       r['Notes / PO Reference No.']||'',
   })).filter(r=>r.qty>0).sort((a,b)=>b.delivDate.localeCompare(a.delivDate)||b.invoiceDate.localeCompare(a.invoiceDate));
 
-  const totalCost    = rows.reduce((s,r)=>s+r.total,0);
-  const totalUnits   = rows.reduce((s,r)=>s+r.qty,0);
-  const now          = new Date();
-  const thisMonthCost= rows.filter(r=>{
+  const totalCost  = rows.reduce((s,r)=>s+r.total,0);
+  const totalUnits = rows.reduce((s,r)=>s+r.qty,0);
+  const now = new Date();
+  const thisMonthCost = rows.filter(r=>{
     const d=parseDate(r.delivDate||r.invoiceDate);
     return d&&d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();
   }).reduce((s,r)=>s+r.total,0);
 
-  // KPIs
+  document.getElementById('payout-sub').innerHTML = `&nbsp;·&nbsp; ${esc(rangeLabel())}`;
   const kpiEl = document.getElementById('payout-kpis');
   if (kpiEl) kpiEl.innerHTML=[
     {label:'Total Purchased',value:fmt(totalCost),color:'var(--terra)'},
@@ -1016,36 +1420,40 @@ function filterPayoutTable() {
   const tb = document.getElementById('payout-tbody');
   if(!tb) return;
   tb.innerHTML=rows.map(r=>`<tr>
-    <td><div class="nm" style="font-size:12px">${r.orderDate||'—'}</div><div class="ds">Inv: ${r.invoiceDate||'—'}</div></td>
-    <td><div class="nm" style="font-size:12px">${r.item.substring(0,45)}</div></td>
-    <td><span class="sku">${r.sku||''}</span></td>
-    <td>${r.godown||'—'}</td>
-    <td>${r.delivDate||'—'}</td>
+    <td><div class="nm" style="font-size:12px">${esc(r.orderDate||'—')}</div><div class="ds">Inv: ${esc(r.invoiceDate||'—')}</div></td>
+    <td><div class="nm" style="font-size:12px">${esc(r.item.substring(0,45))}</div></td>
+    <td><span class="sku">${esc(r.sku)}</span></td>
+    <td>${esc(r.godown||'—')}</td>
+    <td>${esc(r.delivDate||'—')}</td>
     <td style="text-align:center;font-weight:600">${r.qty}</td>
     <td style="text-align:right">${r.rate?fmt(r.rate):'—'}</td>
     <td style="text-align:right;font-weight:700;color:var(--terra)">${r.total?fmt(r.total):'—'}</td>
-    <td style="font-size:12px;color:var(--ink-mute)">${r.dueDate||'—'}</td>
-    <td style="font-size:12px;color:var(--ink-mute)">${r.notes||'—'}</td>
-  </tr>`).join('')||`<tr><td colspan="10"><div class="empty"><div class="ei">🧾</div><p>No purchase records yet.</p></div></td></tr>`;
+    <td style="font-size:12px;color:var(--ink-mute)">${esc(r.dueDate||'—')}</td>
+    <td style="font-size:12px;color:var(--ink-mute)">${esc(r.notes||'—')}</td>
+  </tr>`).join('')||emptyRow(10,'🧾','No purchases in this range');
 }
 
-// ── TAB 4: CATEGORIES ─────────────────────────────────────────────────────────
+// ── TAB 5: CATEGORIES ─────────────────────────────────────────────────────────
 function renderCategories() {
+  return periodMode() ? renderCategoriesPeriod() : renderCategoriesSnapshot();
+}
+
+function renderCategoriesSnapshot(){
   const catMap={};
-  INV.forEach(r=>{
-    const cat=r['Item Type']||r['Product Type']||'Uncategorised';
-    if (!catMap[cat]) catMap[cat]={skus:0,units:0,cost:0,items:[]};
+  fINV().forEach(r=>{
+    const cat=catOfRow(r);
+    if (!catMap[cat]) catMap[cat]={skus:0,units:0,cost:0};
     catMap[cat].skus++;
     catMap[cat].units+=Math.max(0,totBal(r));
     catMap[cat].cost+=Math.max(0,totBal(r))*n(r['Per Unit Purchase Rate']||r['Purchase Rate']||0);
-    catMap[cat].items.push(r);
   });
   const entries=Object.entries(catMap).sort((a,b)=>b[1].units-a[1].units);
   const maxU=entries[0]?.[1].units||1;
 
+  document.getElementById('cat-sub').innerHTML = `&nbsp;·&nbsp; live snapshot`;
   document.getElementById('cat-grid').innerHTML=entries.map(([cat,data],i)=>`
-    <div class="cat-card ${selectedCat===cat?'sel':''}" onclick="selectCat('${cat.replace(/'/,"\\'").replace(/"/,'&quot;')}')">
-      <div class="cat-hdr"><div class="cat-nm">${cat}</div><div style="font-size:22px">📦</div></div>
+    <div class="cat-card ${selectedCat===cat?'sel':''}" onclick="selectCat(${JSON.stringify(cat).replace(/"/g,'&quot;')})">
+      <div class="cat-hdr"><div class="cat-nm">${esc(cat)}</div><div style="font-size:22px">📦</div></div>
       <div class="bar-track" style="margin-bottom:12px">
         <div class="bar-fill" style="width:${Math.round(data.units/maxU*100)}%;background:var(${COLOURS[i%COLOURS.length]})"></div>
       </div>
@@ -1054,155 +1462,208 @@ function renderCategories() {
         <div class="cat-stat"><strong>${data.units.toLocaleString('en-IN')}</strong> Units</div>
         <div class="cat-stat"><strong>${fmt(data.cost)}</strong> Value</div>
       </div>
-    </div>`).join('');
+    </div>`).join('') || `<div class="empty"><div class="ei">📭</div><p>No categories match the current filters</p></div>`;
+  renderCatDetail();
+}
+
+function renderCategoriesPeriod(){
+  const catMap={};
+  movementBySku('All').forEach(r=>{
+    if(!catMap[r.cat]) catMap[r.cat]={skus:0,in:0,out:0,valOut:0};
+    if(r.qtyIn||r.qtyOut) catMap[r.cat].skus++;
+    catMap[r.cat].in+=r.qtyIn; catMap[r.cat].out+=r.qtyOut; catMap[r.cat].valOut+=r.valOut;
+  });
+  const entries=Object.entries(catMap).filter(([,d])=>d.in||d.out).sort((a,b)=>b[1].out-a[1].out);
+  const maxO=entries[0]?.[1].out||1;
+
+  document.getElementById('cat-sub').innerHTML = `&nbsp;·&nbsp; movement · ${esc(rangeLabel())}`;
+  document.getElementById('cat-grid').innerHTML=entries.map(([cat,d],i)=>{
+    const net=d.in-d.out;
+    return `<div class="cat-card ${selectedCat===cat?'sel':''}" onclick="selectCat(${JSON.stringify(cat).replace(/"/g,'&quot;')})">
+      <div class="cat-hdr"><div class="cat-nm">${esc(cat)}</div><div style="font-size:22px">↕</div></div>
+      <div class="bar-track" style="margin-bottom:12px">
+        <div class="bar-fill" style="width:${Math.round(d.out/maxO*100)}%;background:var(${COLOURS[i%COLOURS.length]})"></div>
+      </div>
+      <div class="cat-stats">
+        <div class="cat-stat"><strong style="color:var(--sage)">${d.in.toLocaleString('en-IN')}</strong> In</div>
+        <div class="cat-stat"><strong style="color:var(--terra)">${d.out.toLocaleString('en-IN')}</strong> Out</div>
+        <div class="cat-stat"><strong>${net>=0?'+':''}${net}</strong> Net</div>
+        <div class="cat-stat"><strong>${fmt(d.valOut)}</strong> Sales</div>
+      </div>
+    </div>`;
+  }).join('') || `<div class="empty"><div class="ei">📭</div><p>No category movement in this range</p></div>`;
+  renderCatDetail();
 }
 
 function selectCat(cat) {
   selectedCat = selectedCat===cat ? null : cat;
-  renderCategories();
+  periodMode() ? renderCategoriesPeriod() : renderCategoriesSnapshot();
+}
+
+function renderCatDetail(){
   const det = document.getElementById('cat-detail');
   if (!selectedCat) { det.innerHTML=''; return; }
-  const items=INV.filter(r=>(r['Item Type']||r['Product Type']||'Uncategorised')===cat&&totBal(r)>0);
+  const cat = selectedCat;
+
+  if(periodMode()){
+    const items = movementBySku('All').filter(r=>r.cat===cat && (r.qtyIn||r.qtyOut)).sort((a,b)=>b.qtyOut-a.qtyOut);
+    det.innerHTML=`<div class="tbl-wrap">
+      <div style="padding:14px 18px;background:var(--bg);border-bottom:1px solid var(--border);font-weight:600;font-size:13px">${esc(cat)} — ${items.length} items moved · ${esc(rangeLabel())}</div>
+      <div style="overflow-x:auto"><table>
+        <thead><tr><th>Item</th><th>SKU</th><th>Units In</th><th>Units Out</th><th>Net</th><th>Sales Value</th><th>Stock Now</th></tr></thead>
+        <tbody>${items.map(r=>`<tr>
+          <td><div class="nm">${esc(r.name||'—')}</div></td>
+          <td><span class="sku">${esc(r.sku)}</span></td>
+          <td style="text-align:center;color:var(--sage);font-weight:600">${r.qtyIn||'—'}</td>
+          <td style="text-align:center;color:var(--terra);font-weight:600">${r.qtyOut||'—'}</td>
+          <td style="text-align:center;font-weight:700">${r.qtyIn-r.qtyOut>=0?'+':''}${r.qtyIn-r.qtyOut}</td>
+          <td style="text-align:right">${r.valOut?fmt(r.valOut):'—'}</td>
+          <td style="text-align:center">${sbadge(curBal(r.sku))}</td>
+        </tr>`).join('') || emptyRow(7,'📭','Nothing moved')}</tbody>
+      </table></div>
+    </div>`;
+    return;
+  }
+
+  const items=fINV().filter(r=>catOfRow(r)===cat&&totBal(r)>0);
   det.innerHTML=`<div class="tbl-wrap">
-    <div style="padding:14px 18px;background:var(--bg);border-bottom:1px solid var(--border);font-weight:600;font-size:13px">${cat} — ${items.length} items in stock</div>
+    <div style="padding:14px 18px;background:var(--bg);border-bottom:1px solid var(--border);font-weight:600;font-size:13px">${esc(cat)} — ${items.length} items in stock</div>
     <div style="overflow-x:auto"><table>
       <thead><tr><th>Item</th><th>SKU</th>${GODOWNS.map(g=>`<th>${g}</th>`).join('')}<th>Total</th></tr></thead>
       <tbody>${items.map(row=>{
         const info=itemInfo(row);
         return `<tr>
-          <td><div class="nm">${info.name}</div><div class="ds">${info.desc}${info.size?' · '+info.size:''}</div></td>
-          <td><span class="sku">${row['SKU']||''}</span></td>
+          <td><div class="nm">${esc(info.name)}</div><div class="ds">${esc(info.desc)}${info.size?' · '+esc(info.size):''}</div></td>
+          <td><span class="sku">${esc(row['SKU']||'')}</span></td>
           ${GODOWNS.map((_,gi)=>`<td style="text-align:center">${sbadge(gdBal(row,gi))}</td>`).join('')}
           <td style="text-align:center"><strong>${sbadge(totBal(row))}</strong></td>
         </tr>`;
-      }).join('')}</tbody>
+      }).join('') || emptyRow(GODOWNS.length+3,'📭','No items in stock')}</tbody>
     </table></div>
   </div>`;
 }
 
-// ── TAB 5: MOVEMENT ──────────────────────────────────────────────────────────
+// ── TAB 6: MOVEMENT ──────────────────────────────────────────────────────────
 function renderMovement() {
-  const totalOut   = SALES.reduce((s,r)=>s+n(r['Qty Sold']),0);
-  const revOut     = SALES.reduce((s,r)=>s+n(r['Actual Total Selling Price incl GST']),0);
-  const totalIn    = ADDITIONS.reduce((s,r)=>s+n(r['Qty Added']),0);
+  const sales = fSALES(), adds = fADD();
+  const totalOut = sales.reduce((s,r)=>s+n(r['Qty Sold']),0);
+  const revOut   = sales.reduce((s,r)=>s+n(r['Actual Total Selling Price incl GST']),0);
+  const totalIn  = adds.reduce((s,r)=>s+n(r['Qty Added']),0);
+  const purchCost= adds.reduce((s,r)=>s+n(r['Qty Added'])*purchRate(r['SKU']),0);
 
-  // Build purchase rate map for additions cost
-  const rateMap={};
-  INV.forEach(r=>{if(r['SKU'])rateMap[r['SKU']]=n(r['Per Unit Purchase Rate']||0);});
-  const purchCost = ADDITIONS.reduce((s,r)=>s+n(r['Qty Added'])*(rateMap[r['SKU']]||0),0);
+  document.getElementById('mov-sub').innerHTML = `&nbsp;·&nbsp; ${esc(rangeLabel())}`;
+  document.getElementById('mov-kpis').innerHTML = kpiHTML([
+    {cls:'sage',  icon:'↗', label:'Units Received',    value:totalIn.toLocaleString('en-IN'),  sub:`${adds.length} additions`},
+    {cls:'terra', icon:'↘', label:'Units Sold',        value:totalOut.toLocaleString('en-IN'), sub:`${sales.length} transactions`},
+    {cls:'gold',  icon:'💰', label:'Revenue from Sales', value:fmt(revOut),                    sub:'Incl GST'},
+    {cls:'amber', icon:'💸', label:'Purchase Cost',     value:fmt(purchCost),                  sub:'Stock additions'},
+  ]);
 
-  document.getElementById('mov-kpis').innerHTML = [
-    {cls:'sage',  icon:'↗', label:'Units Received',    value:totalIn.toLocaleString('en-IN'),  sub:`${ADDITIONS.length} additions`},
-    {cls:'terra', icon:'↘', label:'Units Sold',         value:totalOut.toLocaleString('en-IN'), sub:`${SALES.length} transactions`},
-    {cls:'gold',  icon:'💰', label:'Revenue from Sales', value:fmt(revOut),                     sub:'Incl GST'},
-    {cls:'amber', icon:'💸', label:'Purchase Cost',      value:fmt(purchCost),                  sub:'Stock additions'},
-  ].map(k=>`<div class="kpi ${k.cls}"><div class="kpi-icon">${k.icon}</div><div class="kpi-label">${k.label}</div><div class="kpi-value">${k.value}</div><div class="kpi-sub">${k.sub}</div></div>`).join('');
+  const bk = makeBuckets();
+  bk.values = bk.keys.map(()=>({a:0,b:0}));
+  adds.forEach(r=>{ const i=bk.bucketOf(addDateOf(r)); if(i>=0) bk.values[i].a += n(r['Qty Added']); });
+  sales.forEach(r=>{ const i=bk.bucketOf(r['Date']);   if(i>=0) bk.values[i].b += n(r['Qty Sold']); });
 
-  // Bar chart — stock in (additions by delivery date) vs out (sales)
-  const now=new Date(), dayMap={};
-  for (let d=29;d>=0;d--){const dt=new Date(now);dt.setDate(now.getDate()-d);dayMap[dt.toISOString().slice(0,10)]={in:0,out:0};}
+  document.getElementById('mov-chart-title').textContent = `${bk.unitName} Movement — ${rangeLabel()}`;
+  document.getElementById('mov-chart').innerHTML = barChartHTML(bk, [
+    {name:'In',  cls:'in-b',  fmt:v=>v+' units'},
+    {name:'Out', cls:'out-b', fmt:v=>v+' units'},
+  ]);
 
-  // Use Delivery Date for additions (col index 3), fall back to Invoice Date, then Order Placed Date
-  ADDITIONS.forEach(r=>{
-    const dateVal = r['Delivery Date'] || r['Invoice Date'] || r['Order Placed Date'] || '';
-    const k=toISO(dateVal);
-    if(k && dayMap[k]!==undefined) dayMap[k].in+=n(r['Qty Added']);
-  });
-  SALES.forEach(r=>{
-    const k=toISO(r['Date']);
-    if(k && dayMap[k]!==undefined) dayMap[k].out+=n(r['Qty Sold']);
-  });
-
-  const days=Object.entries(dayMap);
-  const maxV=Math.max(...days.map(([,v])=>Math.max(v.in,v.out)),1);
-  const CH=100;
-  document.getElementById('mov-chart').innerHTML=days.map(([date,vals])=>{
-    const ih=Math.round(vals.in/maxV*CH);
-    const oh=Math.round(vals.out/maxV*CH);
-    return `<div class="bar-group" title="${date}&#10;In: ${vals.in} units&#10;Out: ${vals.out} units">
-      <div class="bar-pair">
-        <div class="bar in-b"  style="height:${ih}px"></div>
-        <div class="bar out-b" style="height:${oh}px"></div>
-      </div>
-      <div class="bar-lbl">${date.slice(5).replace('-','/')}</div>
-    </div>`;
-  }).join('');
-
-  // Combined recent transactions — both IN and OUT
   const combined = [
-    ...ADDITIONS.map(r=>({
-      date: r['Delivery Date']||r['Invoice Date']||r['Order Placed Date']||'',
-      type: 'IN',
-      item: r['Item']||r['Item Name']||'',
-      sku:  r['SKU']||'',
-      godown: r['Godown']||'',
-      qty:  n(r['Qty Added']),
-      value: n(r['Qty Added'])*(rateMap[r['SKU']]||0),
-      note: r['Notes / PO Reference No.']||'',
+    ...adds.map(r=>({
+      date: addDateOf(r), type:'IN',
+      item: r['Item']||r['Item Name']||'', sku:r['SKU']||'', godown:r['Godown']||'',
+      qty: n(r['Qty Added']), value: n(r['Qty Added'])*purchRate(r['SKU']),
     })),
-    ...SALES.map(r=>({
-      date: r['Date']||'',
-      type: 'OUT',
-      item: r['Item']||r['Item Name']||'',
-      sku:  r['SKU']||'',
-      godown: r['Godown']||'',
-      qty:  n(r['Qty Sold']),
-      value: n(r['Actual Total Selling Price incl GST']),
-      note: r['Client Name']||'',
+    ...sales.map(r=>({
+      date: r['Date']||'', type:'OUT',
+      item: r['Item']||r['Item Name']||'', sku:r['SKU']||'', godown:r['Godown']||'',
+      qty: n(r['Qty Sold']), value: n(r['Actual Total Selling Price incl GST']),
     })),
-  ].filter(r=>r.date).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,80);
+  ].filter(r=>r.date).sort((a,b)=>(toISO(b.date)||'').localeCompare(toISO(a.date)||'')).slice(0,150);
 
   document.getElementById('mov-tbody').innerHTML=combined.map(r=>`
     <tr>
-      <td>${r.date||'—'}</td>
+      <td>${esc(r.date||'—')}</td>
       <td><span style="padding:3px 8px;border-radius:100px;font-size:11px;font-weight:600;
         background:${r.type==='IN'?'var(--sage-l)':'var(--terra-l)'};
         color:${r.type==='IN'?'var(--sage)':'var(--terra)'}">
         ${r.type==='IN'?'↗ IN':'↘ OUT'}
       </span></td>
-      <td><div class="nm" style="font-size:12px">${r.item.substring(0,45)}</div><span class="sku">${r.sku}</span></td>
-      <td>${r.godown||'—'}</td>
+      <td><div class="nm" style="font-size:12px">${esc(r.item.substring(0,45))}</div><span class="sku">${esc(r.sku)}</span></td>
+      <td>${esc(r.godown||'—')}</td>
       <td style="text-align:center;font-weight:600">${r.qty||'—'}</td>
       <td style="text-align:right;font-weight:600;color:${r.type==='IN'?'var(--terra)':'var(--sage)'}">${r.value>0?fmt(r.value):'—'}</td>
-    </tr>`).join('') || `<tr><td colspan="6"><div class="empty"><div class="ei">📭</div><p>No movement data yet</p></div></td></tr>`;
+    </tr>`).join('') || emptyRow(6,'📭','No movement in this range');
 }
 
-// ── TAB 6: REORDER ───────────────────────────────────────────────────────────
+// ── TAB 7: REORDER ───────────────────────────────────────────────────────────
 function renderReorder() {
-  const oos  = INV.filter(r=>totBal(r)<=0);
-  const low  = INV.filter(r=>{const b=totBal(r),rl=n(r['Reorder Level']);return b>0&&(rl>0?b<=rl:b<=5);});
+  const scope = fINV();
+  const oos  = scope.filter(r=>totBal(r)<=0);
+  const low  = scope.filter(r=>{const b=totBal(r),rl=n(r['Reorder Level']);return b>0&&(rl>0?b<=rl:b<=5);});
   const cnt  = oos.length+low.length;
   const badge=document.getElementById('reorder-badge');
   badge.textContent=cnt; badge.style.display=cnt>0?'inline-block':'none';
 
-  document.getElementById('ro-kpis').innerHTML=[
+  const sold = soldMapBySku();
+  const days = rangeDays();
+  const withVelocity = periodMode();
+
+  document.getElementById('ro-sub').innerHTML = withVelocity
+    ? `&nbsp;·&nbsp; current stock · velocity from ${esc(rangeLabel())}`
+    : `&nbsp;·&nbsp; current stock`;
+
+  document.getElementById('ro-kpis').innerHTML = kpiHTML([
     {cls:'maroon',icon:'🔴',label:'Out of Stock',value:oos.length,sub:'Immediate reorder'},
     {cls:'amber', icon:'🟡',label:'Low Stock',   value:low.length, sub:'Order soon'},
-    {cls:'sage',  icon:'✅',label:'Healthy',      value:INV.length-oos.length-low.length,sub:'No action needed'},
-  ].map(k=>`<div class="kpi ${k.cls}"><div class="kpi-icon">${k.icon}</div><div class="kpi-label">${k.label}</div><div class="kpi-value">${k.value}</div><div class="kpi-sub">${k.sub}</div></div>`).join('');
+    {cls:'sage',  icon:'✅',label:'Healthy',     value:Math.max(0,scope.length-oos.length-low.length),sub:'No action needed'},
+  ]);
 
-  document.getElementById('oos-tbody').innerHTML=oos.map(r=>{
-    const info=itemInfo(r);
-    return `<tr class="stockout-row">
-      <td><div class="nm">${info.name}</div><div class="ds">${info.desc}</div></td>
-      <td><span class="sku">${r['SKU']||''}</span></td>
-      <td>${r['Item Type']||r['Product Type']||'—'}</td>
-      <td>${n(r['Reorder Level'])||'—'}</td>
-      <td><span class="urgency crit">Out of Stock</span></td>
-    </tr>`;
-  }).join('')||`<tr><td colspan="5"><div class="empty" style="padding:24px"><div class="ei">✅</div><p>No stock-outs</p></div></td></tr>`;
+  const soldCol = withVelocity ? '<th>Sold in Range</th>' : '';
+  document.getElementById('oos-thead').innerHTML =
+    `<tr><th>Item</th><th>SKU</th><th>Category</th><th>Reorder Level</th>${soldCol}<th>Status</th></tr>`;
+  document.getElementById('ro-thead').innerHTML =
+    `<tr><th>Item</th><th>SKU</th><th>Category</th><th>Stock</th><th>Reorder Level</th>${soldCol}${withVelocity?'<th>Days of Cover</th>':''}<th>Urgency</th></tr>`;
 
-  document.getElementById('ro-tbody').innerHTML=low.sort((a,b)=>totBal(a)-totBal(b)).map(r=>{
-    const info=itemInfo(r), bal=totBal(r), rl=n(r['Reorder Level']);
-    return `<tr class="reorder-row">
-      <td><div class="nm">${info.name}</div><div class="ds">${info.desc}</div></td>
-      <td><span class="sku">${r['SKU']||''}</span></td>
-      <td>${r['Item Type']||r['Product Type']||'—'}</td>
-      <td style="text-align:center"><strong>${bal}</strong></td>
-      <td style="text-align:center">${rl||'5'}</td>
-      <td><span class="urgency ${bal<=2?'crit':'low'}">${bal<=2?'Critical':'Low'}</span></td>
-    </tr>`;
-  }).join('')||`<tr><td colspan="6"><div class="empty" style="padding:24px"><div class="ei">✅</div><p>All above reorder levels</p></div></td></tr>`;
+  const oosCols = withVelocity ? 6 : 5;
+  document.getElementById('oos-tbody').innerHTML=oos
+    .sort((a,b)=>(sold[b['SKU']]||0)-(sold[a['SKU']]||0))
+    .map(r=>{
+      const info=itemInfo(r), s=sold[r['SKU']]||0;
+      return `<tr class="stockout-row">
+        <td><div class="nm">${esc(info.name)}</div><div class="ds">${esc(info.desc)}</div></td>
+        <td><span class="sku">${esc(r['SKU']||'')}</span></td>
+        <td>${esc(catOfRow(r))}</td>
+        <td>${n(r['Reorder Level'])||'—'}</td>
+        ${withVelocity?`<td style="text-align:center;font-weight:600;color:var(--terra)">${s||'—'}</td>`:''}
+        <td><span class="urgency crit">Out of Stock</span></td>
+      </tr>`;
+    }).join('')||emptyRow(oosCols,'✅','No stock-outs');
+
+  const roCols = withVelocity ? 8 : 6;
+  document.getElementById('ro-tbody').innerHTML=low
+    .sort((a,b)=>totBal(a)-totBal(b))
+    .map(r=>{
+      const info=itemInfo(r), bal=totBal(r), rl=n(r['Reorder Level']);
+      const s=sold[r['SKU']]||0;
+      const perDay = s/days;
+      const cover = perDay>0 ? Math.floor(bal/perDay) : null;
+      const coverStr = cover===null ? '<span style="color:var(--ink-mute)">No sales</span>'
+        : cover<=7 ? `<span style="color:var(--maroon);font-weight:600">${cover}d</span>`
+        : cover<=21 ? `<span style="color:var(--amber);font-weight:600">${cover}d</span>`
+        : `<span style="color:var(--sage)">${cover}d</span>`;
+      return `<tr class="reorder-row">
+        <td><div class="nm">${esc(info.name)}</div><div class="ds">${esc(info.desc)}</div></td>
+        <td><span class="sku">${esc(r['SKU']||'')}</span></td>
+        <td>${esc(catOfRow(r))}</td>
+        <td style="text-align:center"><strong>${bal}</strong></td>
+        <td style="text-align:center">${rl||'5'}</td>
+        ${withVelocity?`<td style="text-align:center;font-weight:600;color:var(--terra)">${s||'—'}</td><td style="text-align:center">${coverStr}</td>`:''}
+        <td><span class="urgency ${bal<=2?'crit':'low'}">${bal<=2?'Critical':'Low'}</span></td>
+      </tr>`;
+    }).join('')||emptyRow(roCols,'✅','All above reorder levels');
 }
 
 // ── SORT ──────────────────────────────────────────────────────────────────────
@@ -1229,10 +1690,12 @@ function srt(tableId,colIdx){
 
 // ── TAB SWITCH ────────────────────────────────────────────────────────────────
 function switchTab(tab){
+  activeTab = tab;
   document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
   document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
   document.getElementById('tab-'+tab).classList.add('active');
+  updateModeBanner();
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
