@@ -476,30 +476,30 @@
     <div id="tab-payouts" class="tab-content">
       <div class="section-hdr"><div class="section-title">💸 Purchase Payouts <span class="section-sub" id="payout-sub"></span></div></div>
       <div class="summary-grid" id="payout-kpis"></div>
+      <div class="two-col">
+        <div class="card"><div class="card-title">🏭 Outstanding by Supplier</div><div id="payout-supplier"></div></div>
+        <div class="card"><div class="card-title">🏪 Purchase Spend by Godown</div><div id="payout-godown"></div></div>
+      </div>
       <div class="tbl-wrap">
         <div class="tbl-toolbar">
-          <input class="search" type="text" placeholder="Search item, SKU, PO ref…" id="payout-search" oninput="filterPayoutTable()">
+          <input class="search" type="text" placeholder="Search item, SKU, supplier, PO ref…" id="payout-search" oninput="filterPayoutTable()">
           <select class="fsel" id="payout-gd-filter" onchange="filterPayoutTable()">
             <option value="">All Godowns</option>
             <option>Sebby</option><option>Rene</option><option>Amey</option>
             <option>Anupa</option><option>Dorma</option><option>Godwin</option>
           </select>
+          <select class="fsel" id="payout-pay-filter" onchange="filterPayoutTable()">
+            <option value="">All Payments</option>
+            <option value="unpaid">Unpaid</option>
+            <option value="part">Partially Paid</option>
+            <option value="paid">Fully Paid</option>
+            <option value="nocost">No Cost Recorded</option>
+          </select>
           <div class="res-count" id="payout-count"></div>
         </div>
         <div style="overflow-x:auto">
           <table id="payout-table">
-            <thead><tr>
-              <th onclick="srt('payout-table',0)">Order / Invoice Date</th>
-              <th onclick="srt('payout-table',1)">Item</th>
-              <th onclick="srt('payout-table',2)">SKU</th>
-              <th onclick="srt('payout-table',3)">Godown</th>
-              <th onclick="srt('payout-table',4)">Delivery Date</th>
-              <th onclick="srt('payout-table',5)">Qty</th>
-              <th onclick="srt('payout-table',6)">Purchase Rate</th>
-              <th onclick="srt('payout-table',7)">Total Cost</th>
-              <th onclick="srt('payout-table',8)">Payment Due</th>
-              <th onclick="srt('payout-table',9)">PO Reference</th>
-            </tr></thead>
+            <thead id="payout-thead"></thead>
             <tbody id="payout-tbody"></tbody>
           </table>
         </div>
@@ -656,6 +656,24 @@ function matchItem(sku, name){
 }
 function matchCat(cat){ return !FILTERS.cat || cat===FILTERS.cat; }
 function addDateOf(r){ return r['Delivery Date']||r['Invoice Date']||r['Order Placed Date']||''; }
+function hasAddDate(r){ return !!toISO(addDateOf(r)); }
+// Purchase cost as billed in the sheet. No rate-based estimate: an estimate would
+// silently disagree with the sheet's own totals, and a blank cost is real information.
+function addCost(r){ return n(r['Total cost incl GST']); }
+function addPaid(r){ return n(r['Paid amount']) || n(r['Payment Made so far']); }
+function addBalance(r){
+  const bal = n(r['Balance Payment']);
+  if(bal) return bal;
+  const cost = addCost(r), paid = addPaid(r);
+  return cost > paid ? cost - paid : 0;
+}
+function addStatus(r){
+  const cost = addCost(r);
+  if(cost <= 0) return 'nocost';
+  const bal = addBalance(r), paid = addPaid(r);
+  if(bal <= 0) return 'paid';
+  return paid > 0 ? 'part' : 'unpaid';
+}
 
 function fINV(){ return INV.filter(r => matchItem(r['SKU'], itemInfo(r).name) && matchCat(catOfRow(r))); }
 function fSALES(){ return SALES.filter(r => inRange(r['Date']) && matchItem(r['SKU'], r['Item Name']) && matchCat(catOfSku(r['SKU']))); }
@@ -673,7 +691,7 @@ function movementBySku(gd){
     if(gd && gd!=='All' && (r['Godown']||'') !== gd) return;
     const s = r['SKU']||'', q = n(r['Qty Added']);
     const o = touch(s, r['Item Name']||r['Item']);
-    o.qtyIn += q; o.valIn += q*purchRate(s); o.txIn++;
+    o.qtyIn += q; o.valIn += addCost(r); o.txIn++;
   });
   fSALES().forEach(r => {
     if(gd && gd!=='All' && (r['Godown']||'') !== gd) return;
@@ -815,7 +833,7 @@ function fmtD(v) { return v || '—'; }
 // ── DATE PARSING ──────────────────────────────────────────────────────────────
 function parseDate(s) {
   if (!s) return null;
-  const clean = s.replace(/\./g,'-').trim();
+  const clean = s.replace(/[.\/]/g,'-').trim();
   const parts = clean.split('-');
   if (parts.length < 3) return null;
   let y,m,d;
@@ -848,7 +866,7 @@ async function loadAll() {
     const [invData, salesData, addData] = await Promise.all([
       fetchSheet(GID_INV, 0),
       fetchSheet(GID_SALES, 2),   // header is row 3 (index 2) in Stock Reductions
-      fetchSheet(GID_ADD, 0),     // header is row 1 in Stock Additions
+      fetchSheet(GID_ADD, 1),     // header is row 2 — row 1 is the totals strip
     ]);
 
     // Inventory: col A1 is a client name — remap to 'Item Name'
@@ -861,7 +879,7 @@ async function loadAll() {
 
     // Stock Additions columns: Order Placed Date, Invoice Date, Payment Due Date, Delivery Date,
     //   Item, SKU, Item Name, Godown, Qty Added, Notes / PO Reference No.
-    ADDITIONS = addData.rows.filter(r => r['SKU'] && r['Qty Added'] && Number(r['Qty Added']) > 0);
+    ADDITIONS = addData.rows.filter(r => (r['SKU']||'').trim() && n(r['Qty Added']) > 0);
 
     // Master SKU index — powers the product/category filters across every sheet
     SKUMAP = {};
@@ -1373,36 +1391,70 @@ function filterMoneyTable() { renderMoneyTable(); }
 
 // ── TAB 4: PAYOUTS ────────────────────────────────────────────────────────────
 function renderPayouts() {
-  const rows = fADD().map(r=>({
+  const scoped = fADD();
+  const rows = scoped.map(r=>({
     orderDate:   r['Order Placed Date']||'',
     invoiceDate: r['Invoice Date']||'',
     delivDate:   r['Delivery Date']||'',
     dueDate:     r['Payment Due Date']||'',
+    paidOn:      r['Paid on - Date']||'',
     item:        r['Item']||r['Item Name']||'',
     sku:         r['SKU']||'',
+    supplier:    (r['Seller Details']||r['Coming From']||'').trim(),
     godown:      r['Godown']||'',
     qty:         n(r['Qty Added']),
-    rate:        purchRate(r['SKU']),
-    total:       n(r['Qty Added'])*purchRate(r['SKU']),
+    cost:        addCost(r),
+    paid:        addPaid(r),
+    balance:     addBalance(r),
+    status:      addStatus(r),
     notes:       r['Notes / PO Reference No.']||'',
-  })).filter(r=>r.qty>0).sort((a,b)=>b.delivDate.localeCompare(a.delivDate)||b.invoiceDate.localeCompare(a.invoiceDate));
+  })).sort((a,b)=>(toISO(b.delivDate||b.invoiceDate||b.orderDate)||'').localeCompare(toISO(a.delivDate||a.invoiceDate||a.orderDate)||''));
 
-  const totalCost  = rows.reduce((s,r)=>s+r.total,0);
+  const totalCost  = rows.reduce((s,r)=>s+r.cost,0);
+  const totalPaid  = rows.reduce((s,r)=>s+r.paid,0);
+  const totalBal   = rows.reduce((s,r)=>s+r.balance,0);
   const totalUnits = rows.reduce((s,r)=>s+r.qty,0);
-  const now = new Date();
-  const thisMonthCost = rows.filter(r=>{
-    const d=parseDate(r.delivDate||r.invoiceDate);
-    return d&&d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();
-  }).reduce((s,r)=>s+r.total,0);
+  const noCost     = rows.filter(r=>r.cost<=0).length;
 
-  document.getElementById('payout-sub').innerHTML = `&nbsp;·&nbsp; ${esc(rangeLabel())}`;
+  // Undated purchases silently vanish once a date filter is on — say so.
+  const undated = ADDITIONS.filter(r=>!hasAddDate(r) && matchItem(r['SKU'], r['Item Name']||r['Item']) && matchCat(catOfSku(r['SKU']))).length;
+  const note = hasRange() && undated
+    ? ` · <span style="color:var(--maroon)">${undated} undated ${undated===1?'entry':'entries'} hidden</span>`
+    : '';
+  document.getElementById('payout-sub').innerHTML = `&nbsp;·&nbsp; ${esc(rangeLabel())} · ${rows.length} entries${note}`;
+
   const kpiEl = document.getElementById('payout-kpis');
   if (kpiEl) kpiEl.innerHTML=[
-    {label:'Total Purchased',value:fmt(totalCost),color:'var(--terra)'},
-    {label:'Units Received', value:totalUnits.toLocaleString('en-IN'),color:'var(--ink)'},
-    {label:'This Month',     value:fmt(thisMonthCost),color:'var(--amber)'},
-    {label:'Transactions',   value:rows.length,color:'var(--ink)'},
+    {label:'Total Purchased', value:fmt(totalCost),  color:'var(--terra)'},
+    {label:'Paid',            value:fmt(totalPaid),  color:'var(--sage)'},
+    {label:'Outstanding',     value:fmt(totalBal),   color:'var(--maroon)'},
+    {label:'Units Received',  value:totalUnits.toLocaleString('en-IN'), color:'var(--ink)'},
+    {label:'Entries',         value:rows.length,     color:'var(--ink)'},
+    {label:'No Cost Yet',     value:noCost,          color:noCost?'var(--amber)':'var(--ink-mute)'},
   ].map(k=>`<div class="sum-card"><div class="sum-label">${k.label}</div><div class="sum-value" style="color:${k.color}">${k.value}</div></div>`).join('');
+
+  const supMap={};
+  rows.forEach(r=>{ const s=r.supplier||'Unrecorded'; supMap[s]=(supMap[s]||0)+r.balance; });
+  document.getElementById('payout-supplier').innerHTML = barsHTML(supMap, 'Nothing outstanding in this range');
+
+  const gdMap={};
+  rows.forEach(r=>{ const g=r.godown||'Unknown'; gdMap[g]=(gdMap[g]||0)+r.cost; });
+  document.getElementById('payout-godown').innerHTML = barsHTML(gdMap, 'No purchase cost in this range');
+
+  document.getElementById('payout-thead').innerHTML = `<tr>
+    <th onclick="srt('payout-table',0)">Order / Invoice</th>
+    <th onclick="srt('payout-table',1)">Item</th>
+    <th onclick="srt('payout-table',2)">SKU</th>
+    <th onclick="srt('payout-table',3)">Supplier</th>
+    <th onclick="srt('payout-table',4)">Godown</th>
+    <th onclick="srt('payout-table',5)">Delivered</th>
+    <th onclick="srt('payout-table',6)">Qty</th>
+    <th onclick="srt('payout-table',7)">Total Cost</th>
+    <th onclick="srt('payout-table',8)">Paid</th>
+    <th onclick="srt('payout-table',9)">Balance</th>
+    <th onclick="srt('payout-table',10)">Payment Due</th>
+    <th onclick="srt('payout-table',11)">Status</th>
+  </tr>`;
 
   window._payoutRows = rows;
   filterPayoutTable();
@@ -1411,26 +1463,44 @@ function renderPayouts() {
 function filterPayoutTable() {
   const search = (document.getElementById('payout-search')?.value||'').toLowerCase();
   const gdF    = document.getElementById('payout-gd-filter')?.value||'';
+  const payF   = document.getElementById('payout-pay-filter')?.value||'';
   const rows   = (window._payoutRows||[]).filter(r=>
-    (!search||r.item.toLowerCase().includes(search)||(r.sku||'').toLowerCase().includes(search)||(r.notes||'').toLowerCase().includes(search))&&
-    (!gdF||r.godown===gdF)
+    (!search||r.item.toLowerCase().includes(search)||(r.sku||'').toLowerCase().includes(search)
+      ||(r.supplier||'').toLowerCase().includes(search)||(r.notes||'').toLowerCase().includes(search))&&
+    (!gdF||r.godown===gdF)&&
+    (!payF||r.status===payF)
   );
   const ct = document.getElementById('payout-count');
-  if(ct) ct.textContent=`${rows.length} transactions`;
+  if(ct) ct.textContent=`${rows.length} entries`;
   const tb = document.getElementById('payout-tbody');
   if(!tb) return;
-  tb.innerHTML=rows.map(r=>`<tr>
-    <td><div class="nm" style="font-size:12px">${esc(r.orderDate||'—')}</div><div class="ds">Inv: ${esc(r.invoiceDate||'—')}</div></td>
-    <td><div class="nm" style="font-size:12px">${esc(r.item.substring(0,45))}</div></td>
-    <td><span class="sku">${esc(r.sku)}</span></td>
-    <td>${esc(r.godown||'—')}</td>
-    <td>${esc(r.delivDate||'—')}</td>
-    <td style="text-align:center;font-weight:600">${r.qty}</td>
-    <td style="text-align:right">${r.rate?fmt(r.rate):'—'}</td>
-    <td style="text-align:right;font-weight:700;color:var(--terra)">${r.total?fmt(r.total):'—'}</td>
-    <td style="font-size:12px;color:var(--ink-mute)">${esc(r.dueDate||'—')}</td>
-    <td style="font-size:12px;color:var(--ink-mute)">${esc(r.notes||'—')}</td>
-  </tr>`).join('')||emptyRow(10,'🧾','No purchases in this range');
+
+  const now = new Date();
+  tb.innerHTML=rows.map(r=>{
+    const badge = r.status==='paid'   ? `<span class="badge b-ok">Paid</span>`
+                : r.status==='part'   ? `<span class="badge b-low">Partial</span>`
+                : r.status==='unpaid' ? `<span class="badge b-zero">Unpaid</span>`
+                : `<span style="color:var(--ink-mute);font-size:12px">Not costed</span>`;
+    const dd = parseDate(r.dueDate);
+    const od = dd ? daysBetween(dd, now) : null;
+    const dueStr = !r.dueDate ? '—'
+      : (od>0 && r.balance>0) ? `<span style="color:var(--maroon);font-weight:600">${esc(r.dueDate)} · ${od}d over</span>`
+      : esc(r.dueDate);
+    return `<tr>
+      <td><div class="nm" style="font-size:12px">${esc(r.orderDate||'—')}</div><div class="ds">Inv: ${esc(r.invoiceDate||'—')}</div></td>
+      <td><div class="nm" style="font-size:12px">${esc(r.item.substring(0,45))}</div></td>
+      <td><span class="sku">${esc(r.sku)}</span></td>
+      <td style="font-size:12px">${esc(r.supplier||'—')}</td>
+      <td>${esc(r.godown||'—')}</td>
+      <td style="font-size:12px">${esc(r.delivDate||'—')}</td>
+      <td style="text-align:center;font-weight:600">${r.qty}</td>
+      <td style="text-align:right;font-weight:700;color:var(--terra)">${r.cost?fmt(r.cost):'—'}</td>
+      <td style="text-align:right;color:var(--sage)">${r.paid?fmt(r.paid):'—'}</td>
+      <td style="text-align:right;font-weight:600;color:var(--maroon)">${r.balance?fmt(r.balance):'—'}</td>
+      <td style="font-size:12px">${dueStr}</td>
+      <td>${badge}</td>
+    </tr>`;
+  }).join('')||emptyRow(12,'🧾','No purchases match');
 }
 
 // ── TAB 5: CATEGORIES ─────────────────────────────────────────────────────────
@@ -1549,7 +1619,7 @@ function renderMovement() {
   const totalOut = sales.reduce((s,r)=>s+n(r['Qty Sold']),0);
   const revOut   = sales.reduce((s,r)=>s+n(r['Actual Total Selling Price incl GST']),0);
   const totalIn  = adds.reduce((s,r)=>s+n(r['Qty Added']),0);
-  const purchCost= adds.reduce((s,r)=>s+n(r['Qty Added'])*purchRate(r['SKU']),0);
+  const purchCost= adds.reduce((s,r)=>s+addCost(r),0);
 
   document.getElementById('mov-sub').innerHTML = `&nbsp;·&nbsp; ${esc(rangeLabel())}`;
   document.getElementById('mov-kpis').innerHTML = kpiHTML([
@@ -1574,7 +1644,7 @@ function renderMovement() {
     ...adds.map(r=>({
       date: addDateOf(r), type:'IN',
       item: r['Item']||r['Item Name']||'', sku:r['SKU']||'', godown:r['Godown']||'',
-      qty: n(r['Qty Added']), value: n(r['Qty Added'])*purchRate(r['SKU']),
+      qty: n(r['Qty Added']), value: addCost(r),
     })),
     ...sales.map(r=>({
       date: r['Date']||'', type:'OUT',
