@@ -337,15 +337,6 @@
         <div class="card"><div class="card-title">🏆 Most Profitable Clients</div><div id="pay-clients"></div></div>
       </div>
 
-      <div class="card">
-        <div class="card-title"><span id="rev-chart-title">Sales &amp; Collections</span></div>
-        <div class="chart" id="rev-chart"></div>
-        <div class="legend">
-          <div class="lg"><span class="lg-d" style="background:var(--sage)"></span>Collected</div>
-          <div class="lg"><span class="lg-d" style="background:var(--maroon)"></span>Outstanding</div>
-        </div>
-      </div>
-
       <div class="tbl-wrap" style="margin-bottom:18px">
         <div class="tbl-toolbar">
           <div style="font-weight:600;font-size:13px">⏰ Overdue &amp; Outstanding</div>
@@ -371,9 +362,9 @@
         <div class="tbl-toolbar">
           <input class="search" type="text" placeholder="Search challan, client…" id="bill-search" oninput="filterBillingTable()">
           <select class="fsel" id="bill-pay-filter" onchange="filterBillingTable()">
-            <option value="">All Statuses</option>
+            <option value="">All Payment Statuses</option>
             <option value="Paid">Paid</option>
-            <option value="Partial">Partial</option>
+            <option value="Partial">Partially Paid</option>
             <option value="Unpaid">Unpaid</option>
           </select>
           <select class="fsel" id="bill-margin-filter" onchange="filterBillingTable()">
@@ -478,10 +469,10 @@
             <option>Anupa</option><option>Dorma</option><option>Godwin</option>
           </select>
           <select class="fsel" id="payout-pay-filter" onchange="filterPayoutTable()">
-            <option value="">All Payments</option>
-            <option value="unpaid">Unpaid</option>
+            <option value="">All Payment Statuses</option>
+            <option value="paid">Paid</option>
             <option value="part">Partially Paid</option>
-            <option value="paid">Fully Paid</option>
+            <option value="unpaid">Unpaid</option>
             <option value="nocost">No Cost Recorded</option>
             <option value="check">Balance Mismatch</option>
           </select>
@@ -544,6 +535,7 @@ const COLOURS     = ['--sage','--terra','--amber','--slate','--maroon','--gold',
 let LIVE = [], INV = [], SALES = [], ADDITIONS = [], PAYMENTS = [];
 let REORDER_LVL = {};   // SKU -> reorder level, the one thing Live Stock doesn't carry
 let loadNotes = [];     // data-integrity warnings surfaced in the UI
+let DATA_SPAN = null;   // {from, to} — the true extent of every dated record
 let activeGd = 'All';
 let selectedCat = null;
 let sortState = {};
@@ -596,14 +588,46 @@ function rangeLabel(){
 }
 
 function activeRange(){
+  const span = DATA_SPAN || (()=>{ const t=startOfDay(new Date()); const f=new Date(t); f.setDate(f.getDate()-29); return {from:f,to:t}; })();
   if(hasRange()){
-    const to   = FILTERS.to ? new Date(FILTERS.to+'T00:00:00') : startOfDay(new Date());
-    const from = FILTERS.from ? new Date(FILTERS.from+'T00:00:00') : new Date(to.getFullYear(), to.getMonth(), 1);
+    // An open-ended filter runs to the edge of the data, not to an arbitrary window
+    const to   = FILTERS.to   ? new Date(FILTERS.to+'T00:00:00')   : span.to;
+    const from = FILTERS.from ? new Date(FILTERS.from+'T00:00:00') : span.from;
     return {from, to};
   }
-  const to = startOfDay(new Date());
-  const from = new Date(to); from.setDate(from.getDate()-29);
-  return {from, to};
+  return {from: span.from, to: span.to};   // "All time" charts the full data span
+}
+
+// Widest window that contains every dated record across all sheets
+function computeDataSpan(){
+  const isos = [];
+  const push = s => { const v = toISO(s); if(v) isos.push(v); };
+  SALES.forEach(r => push(r['Date']));
+  ADDITIONS.forEach(r => push(addDateOf(r)));
+  PAYMENTS.forEach(r => push(r['Challan Date']));
+  if(!isos.length){ DATA_SPAN = null; return; }
+  isos.sort();
+  const today = startOfDay(new Date());
+  const to = new Date(isos[isos.length-1]+'T00:00:00');
+  DATA_SPAN = { from: new Date(isos[0]+'T00:00:00'), to: to > today ? to : today };
+
+  // A single mistyped year stretches every "All time" chart. The rows stay in the
+  // data — hiding them would be the bug we just fixed — but they get called out.
+  const horizon = new Date(today); horizon.setDate(horizon.getDate() + 60);
+  const far = [];
+  ADDITIONS.forEach(r => {
+    const iso = toISO(addDateOf(r));
+    if(iso && new Date(iso+'T00:00:00') > horizon) far.push((r['Invoice Number']||'').trim() || (r['SKU']||''));
+  });
+  SALES.forEach(r => {
+    const iso = toISO(r['Date']);
+    if(iso && new Date(iso+'T00:00:00') > horizon) far.push('challan '+((r['Challan Number']||'').trim()||'?'));
+  });
+  if(far.length){
+    const refs = [...new Set(far)].slice(0,3).join(', ');
+    loadNotes.push(`${far.length} record${far.length===1?'':'s'} dated well into the future (${refs}${new Set(far).size>3?', …':''}) — `
+      + `likely a mistyped year. They stretch every "All time" chart to ${Math.round((DATA_SPAN.to-DATA_SPAN.from)/2629800000)} months; fixing the date shortens it automatically.`);
+  }
 }
 function rangeDays(){ const {from,to}=activeRange(); return Math.max(1, Math.round((to-from)/86400000)+1); }
 
@@ -969,6 +993,8 @@ async function loadAll() {
                    purch:0, sale:0, margin:0, marginPct:0, row:null};
     });
 
+    computeDataSpan();
+
     // Challan -> category set, so the global category filter reaches the Payments tab
     // (Payment Tracker's own Product Category column is empty in every row).
     CHALLAN_CAT = {}; CHALLAN_LINES = {};
@@ -1242,16 +1268,6 @@ function renderBilling() {
   const top = Object.fromEntries(Object.entries(clMap).sort((a,b)=>b[1]-a[1]).slice(0,8));
   document.getElementById('pay-clients').innerHTML = barsHTML(top,'No profitable orders in this range');
 
-  // Sales vs collections over the active range
-  const bk = makeBuckets();
-  bk.values = bk.keys.map(()=>({a:0,b:0}));
-  rows.forEach(r=>{ const i=bk.bucketOf(r.date); if(i>=0){ bk.values[i].a += r.coll; bk.values[i].b += r.due; } });
-  document.getElementById('rev-chart-title').textContent = `${bk.unitName} Sales & Collections — ${rangeLabel()}`;
-  document.getElementById('rev-chart').innerHTML = barChartHTML(bk, [
-    {name:'Collected',   cls:'in-b',  fmt:v=>fmt(v)},
-    {name:'Outstanding', cls:'out-b', fmt:v=>fmt(v)},
-  ]);
-
   // Outstanding, oldest first
   const dueRows = rows.filter(r=>r.due>0).sort((a,b)=>(b.age||0)-(a.age||0));
   document.getElementById('due-count').textContent = `${dueRows.length} challans · ${fmt(tDue)}`;
@@ -1286,7 +1302,13 @@ function filterBillingTable() {
     return ms && mp && mm;
   });
 
-  document.getElementById('bill-count').textContent = `${rows.length} challans`;
+  const sSales = rows.reduce((s,r)=>s+r.sales,0);
+  const owed   = rows.reduce((s,r)=>s+Math.max(0,r.due),0);
+  const credit = rows.reduce((s,r)=>s+Math.max(0,-r.due),0);
+  document.getElementById('bill-count').innerHTML =
+    `${rows.length} challans · ${fmt(sSales)}`
+    + (owed   ? ` · <span style="color:var(--maroon)">${fmt(owed)} due</span>` : '')
+    + (credit ? ` · <span style="color:var(--sage)" title="Payments recorded beyond the challan value">${fmt(credit)} credit</span>` : '');
   document.getElementById('bill-tbody').innerHTML = rows.map(r=>{
     const badge = r.status==='Paid'    ? `<span class="badge b-ok">Paid</span>`
                 : r.status==='Partial' ? `<span class="badge b-low">Partial</span>`
@@ -1596,8 +1618,14 @@ function filterPayoutTable() {
     (!gdF||r.godown===gdF)&&
     (!payF||r.status===payF)
   );
+  const sCost  = rows.reduce((s,r)=>s+r.cost,0);
+  const owed   = rows.reduce((s,r)=>s+Math.max(0,r.balance),0);
+  const credit = rows.reduce((s,r)=>s+Math.max(0,-r.balance),0);
   const ct = document.getElementById('payout-count');
-  if(ct) ct.textContent=`${rows.length} entries`;
+  if(ct) ct.innerHTML =
+    `${rows.length} entries · ${fmt(sCost)}`
+    + (owed   ? ` · <span style="color:var(--maroon)">${fmt(owed)} owed</span>` : '')
+    + (credit ? ` · <span style="color:var(--sage)" title="Paid beyond the invoice value">${fmt(credit)} credit</span>` : '');
   const tb = document.getElementById('payout-tbody');
   if(!tb) return;
 
