@@ -55,6 +55,8 @@
   .chip-none{font-size:12px;color:var(--ink-mute);}
   .mode-banner{max-width:1400px;margin:0 auto 18px;background:var(--amber-l);border:1px solid #eddcb4;border-left:3px solid var(--amber);border-radius:var(--r-sm);padding:11px 15px;font-size:12.5px;color:#7a5410;line-height:1.55;}
   .mode-banner strong{color:var(--amber);}
+  .note-x{cursor:pointer;font-size:18px;line-height:1;opacity:.5;padding:0 4px;user-select:none;flex:0 0 auto;}
+  .note-x:hover{opacity:1;color:var(--maroon);}
   @media (max-width:720px){
     .filterbar{padding:10px 14px;position:static;}
     .fb-ctl.prod{width:100%;}
@@ -536,6 +538,7 @@ let LIVE = [], INV = [], SALES = [], ADDITIONS = [], PAYMENTS = [];
 let REORDER_LVL = {};   // SKU -> reorder level, the one thing Live Stock doesn't carry
 let loadNotes = [];     // data-integrity warnings surfaced in the UI
 let DATA_SPAN = null;   // {from, to} — the true extent of every dated record
+let FUTURE_DATED = 0;   // records dated after today, almost always typos
 let activeGd = 'All';
 let selectedCat = null;
 let sortState = {};
@@ -598,37 +601,47 @@ function activeRange(){
   return {from: span.from, to: span.to};   // "All time" charts the full data span
 }
 
-// Widest window that contains every dated record across all sheets
+// Widest window containing every dated record, with the far end capped at today.
+// A single mistyped year (a 2027 delivery date on a 2026 invoice) would otherwise
+// stretch an "All time" chart across months of empty space.
 function computeDataSpan(){
   const isos = [];
   const push = s => { const v = toISO(s); if(v) isos.push(v); };
   SALES.forEach(r => push(r['Date']));
   ADDITIONS.forEach(r => push(addDateOf(r)));
   PAYMENTS.forEach(r => push(r['Challan Date']));
+  FUTURE_DATED = 0;
   if(!isos.length){ DATA_SPAN = null; return; }
   isos.sort();
-  const today = startOfDay(new Date());
-  const to = new Date(isos[isos.length-1]+'T00:00:00');
-  DATA_SPAN = { from: new Date(isos[0]+'T00:00:00'), to: to > today ? to : today };
+  const today   = startOfDay(new Date());
+  const todayIS = isoOf(today);
+  const past    = isos.filter(v => v <= todayIS);
+  FUTURE_DATED  = isos.length - past.length;
+  DATA_SPAN = { from: new Date((past[0] || isos[0]) + 'T00:00:00'), to: today };
 
-  // A single mistyped year stretches every "All time" chart. The rows stay in the
-  // data — hiding them would be the bug we just fixed — but they get called out.
-  const horizon = new Date(today); horizon.setDate(horizon.getDate() + 60);
-  const far = [];
-  ADDITIONS.forEach(r => {
-    const iso = toISO(addDateOf(r));
-    if(iso && new Date(iso+'T00:00:00') > horizon) far.push((r['Invoice Number']||'').trim() || (r['SKU']||''));
-  });
-  SALES.forEach(r => {
-    const iso = toISO(r['Date']);
-    if(iso && new Date(iso+'T00:00:00') > horizon) far.push('challan '+((r['Challan Number']||'').trim()||'?'));
-  });
-  if(far.length){
-    const refs = [...new Set(far)].slice(0,3).join(', ');
-    loadNotes.push(`${far.length} record${far.length===1?'':'s'} dated well into the future (${refs}${new Set(far).size>3?', …':''}) — `
-      + `likely a mistyped year. They stretch every "All time" chart to ${Math.round((DATA_SPAN.to-DATA_SPAN.from)/2629800000)} months; fixing the date shortens it automatically.`);
+  if(FUTURE_DATED){
+    // A delivery due next week is normal scheduling. A date a year out is a typo.
+    // Only the latter is worth interrupting the user about.
+    const horizon = new Date(today); horizon.setDate(horizon.getDate() + 90);
+    const horizonIS = isoOf(horizon);
+    const refs = new Set();
+    let far = 0;
+    ADDITIONS.forEach(r => {
+      const iso = toISO(addDateOf(r));
+      if(iso && iso > horizonIS){ far++; const v=(r['Invoice Number']||'').trim(); if(v) refs.add('invoice '+v); }
+    });
+    SALES.forEach(r => {
+      const iso = toISO(r['Date']);
+      if(iso && iso > horizonIS){ far++; const v=(r['Challan Number']||'').trim(); if(v) refs.add('challan '+v); }
+    });
+    if(far){
+      const list = refs.size ? ' — ' + [...refs].slice(0,3).join(', ') + (refs.size>3 ? ` and ${refs.size-3} more` : '') : '';
+      loadNotes.push(`${far} record${far===1?' is':'s are'} dated more than 90 days ahead${list}, `
+        + `which usually means a mistyped year. Charts run to today; totals still include these rows.`);
+    }
   }
 }
+
 function rangeDays(){ const {from,to}=activeRange(); return Math.max(1, Math.round((to-from)/86400000)+1); }
 
 // Auto-bucketing so a one-year range doesn't render 365 bars
@@ -826,13 +839,32 @@ function renderChips(){
     : `<span class="chip-none">No filters — showing everything, all time.</span>`;
 }
 
+// Notices are dismissible. A dismissal sticks for the session, so a note the user
+// has already read doesn't reappear on every refresh or tab switch.
+let dismissedNotes = new Set();
+function dismissNote(i){
+  const t = loadNotes[i];
+  if(t !== undefined) dismissedNotes.add(t);
+  renderLoadNotes();
+}
+function dismissAllNotes(){
+  loadNotes.forEach(t => dismissedNotes.add(t));
+  renderLoadNotes();
+}
 function renderLoadNotes(){
   const host = document.getElementById('load-notes');
   if(!host) return;
-  host.innerHTML = loadNotes.length
-    ? loadNotes.map(t=>`<div class="mode-banner" style="margin-bottom:10px">⚠️ ${esc(t)}</div>`).join('')
+  const shown = loadNotes.map((t,i)=>({t,i})).filter(o=>!dismissedNotes.has(o.t));
+  if(!shown.length){ host.innerHTML=''; host.style.display='none'; return; }
+  const many = shown.length > 1
+    ? `<div style="text-align:right;margin-bottom:6px"><span class="chip-clear" onclick="dismissAllNotes()">Dismiss all</span></div>`
     : '';
-  host.style.display = loadNotes.length ? 'block' : 'none';
+  host.innerHTML = many + shown.map(o=>`
+    <div class="mode-banner" style="margin-bottom:10px;display:flex;align-items:flex-start;gap:12px">
+      <span style="flex:1">⚠️ ${esc(o.t)}</span>
+      <span class="note-x" title="Dismiss" onclick="dismissNote(${o.i})">×</span>
+    </div>`).join('');
+  host.style.display = 'block';
 }
 
 function updateModeBanner(){
@@ -897,7 +929,11 @@ function n(v) {
   if (v === undefined || v === null || v === '' || v === '–' || v === '-') return 0;
   return parseFloat(String(v).replace(/[₹,\s%#]/g,'').replace(/[^\d.-]/g,'')) || 0;
 }
-function fmt(v) { return v ? '₹' + Math.round(v).toLocaleString('en-IN') : '—'; }
+// Thousands separator every 3 digits (412,500) rather than the Indian
+// lakh/crore grouping (4,12,500). Applied to every figure in the dashboard.
+const NUM_LOCALE = 'en-US';
+function num(v){ return Math.round(v).toLocaleString(NUM_LOCALE); }
+function fmt(v) { return v ? '₹' + num(v) : '—'; }
 // Sheet figures are GST-inclusive, so the base is the inclusive amount divided by 1+rate
 function exGST(v){ return v / (1 + GST_RATE); }
 function gstOf(v){ return v - exGST(v); }
@@ -1095,7 +1131,7 @@ function renderLiveStockSnapshot(){
 
   document.getElementById('ls-sub').innerHTML = `&nbsp;·&nbsp; ${rowsAll.length} SKUs · live snapshot`;
   document.getElementById('ls-kpis').innerHTML = kpiHTML([
-    {cls:'sage', icon:'📦', label:'Total Units', value:total.toLocaleString('en-IN'), sub:'All godowns'},
+    {cls:'sage', icon:'📦', label:'Total Units', value:total.toLocaleString(NUM_LOCALE), sub:'All godowns'},
     {cls:'terra', icon:'🔴', label:'Out of Stock', value:oos, sub:'Need reorder'},
     {cls:'amber', icon:'🟡', label:'Low Stock', value:low, sub:'1–5 units'},
     {cls:'gold',  icon:'✅', label:'Well Stocked', value:ok, sub:'Above 5 units'},
@@ -1126,9 +1162,9 @@ function renderLiveStockPeriod(){
 
   document.getElementById('ls-sub').innerHTML = `&nbsp;·&nbsp; movement · ${esc(rangeLabel())}`;
   document.getElementById('ls-kpis').innerHTML = kpiHTML([
-    {cls:'sage',  icon:'↗', label:'Units In',   value:unitsIn.toLocaleString('en-IN'),  sub:'Stock received'},
-    {cls:'terra', icon:'↘', label:'Units Out',  value:unitsOut.toLocaleString('en-IN'), sub:'Stock sold'},
-    {cls: net>=0?'gold':'maroon', icon: net>=0?'📈':'📉', label:'Net Change', value:(net>=0?'+':'')+net.toLocaleString('en-IN'), sub:'In minus out'},
+    {cls:'sage',  icon:'↗', label:'Units In',   value:unitsIn.toLocaleString(NUM_LOCALE),  sub:'Stock received'},
+    {cls:'terra', icon:'↘', label:'Units Out',  value:unitsOut.toLocaleString(NUM_LOCALE), sub:'Stock sold'},
+    {cls: net>=0?'gold':'maroon', icon: net>=0?'📈':'📉', label:'Net Change', value:(net>=0?'+':'')+net.toLocaleString(NUM_LOCALE), sub:'In minus out'},
     {cls:'slate', icon:'🔀', label:'SKUs Moved', value:moved, sub:'With activity'},
   ]);
 
@@ -1383,7 +1419,7 @@ function renderMoneySnapshot(){
   const costEx = exGST(cost), revEx = exGST(rev);
 
   document.getElementById('money-sub').innerHTML =
-    `&nbsp;·&nbsp; live valuation · ${rowsAll.length} SKUs · ${units.toLocaleString('en-IN')} units`;
+    `&nbsp;·&nbsp; live valuation · ${rowsAll.length} SKUs · ${units.toLocaleString(NUM_LOCALE)} units`;
 
   document.getElementById('money-kpis').innerHTML = kpiHTML([
     {cls:'terra', icon:'💸', label:'Capital Locked (incl GST)', value:fmt(cost), sub:`${fmt(costEx)} + ${fmt(gstOf(cost))} GST`},
@@ -1507,7 +1543,7 @@ function renderMoneyTable() {
       <td><div class="nm">${esc(info.name)}</div><div class="ds">${esc(info.desc.substring(0,46))}</div></td>
       <td><span class="sku">${esc(r['SKU']||'')}</span></td>
       <td style="font-size:12px">${esc(catOfRow(r))}</td>
-      <td style="text-align:center">${bal.toLocaleString('en-IN')}</td>
+      <td style="text-align:center">${bal.toLocaleString(NUM_LOCALE)}</td>
       <td style="text-align:right">${pp?fmt(pp):'—'}</td>
       <td style="text-align:right">${sp?fmt(sp):'—'}</td>
       <td style="text-align:right;font-weight:600;color:${pl>=0?'var(--sage)':'var(--maroon)'}">${pl?fmt(pl):'—'}</td>
@@ -1567,7 +1603,7 @@ function renderPayouts() {
     {label:'Outstanding',     value:fmt(totalBal),   color:'var(--maroon)'},
     {label:'GST in Purchase', value:fmt(gstOf(totalCost)), color:'var(--slate)'},
     {label:'Freight',         value:fmt(totalFreight), color:'var(--amber)'},
-    {label:'Units Received',  value:totalUnits.toLocaleString('en-IN'), color:'var(--ink)'},
+    {label:'Units Received',  value:totalUnits.toLocaleString(NUM_LOCALE), color:'var(--ink)'},
     {label:'Entries',         value:rows.length,     color:'var(--ink)'},
     {label:'No Cost Yet',     value:noCost,          color:noCost?'var(--amber)':'var(--ink-mute)'},
   ].map(k=>`<div class="sum-card"><div class="sum-label">${k.label}</div><div class="sum-value" style="color:${k.color}">${k.value}</div></div>`).join('');
@@ -1687,7 +1723,7 @@ function renderCategoriesSnapshot(){
       </div>
       <div class="cat-stats">
         <div class="cat-stat"><strong>${data.skus}</strong> SKUs</div>
-        <div class="cat-stat"><strong>${data.units.toLocaleString('en-IN')}</strong> Units</div>
+        <div class="cat-stat"><strong>${data.units.toLocaleString(NUM_LOCALE)}</strong> Units</div>
         <div class="cat-stat"><strong>${fmt(data.cost)}</strong> Cost</div>
         <div class="cat-stat"><strong style="color:var(--sage)">${fmt(data.rev-data.cost)}</strong> Margin</div>
       </div>
@@ -1714,8 +1750,8 @@ function renderCategoriesPeriod(){
         <div class="bar-fill" style="width:${Math.round(d.out/maxO*100)}%;background:var(${COLOURS[i%COLOURS.length]})"></div>
       </div>
       <div class="cat-stats">
-        <div class="cat-stat"><strong style="color:var(--sage)">${d.in.toLocaleString('en-IN')}</strong> In</div>
-        <div class="cat-stat"><strong style="color:var(--terra)">${d.out.toLocaleString('en-IN')}</strong> Out</div>
+        <div class="cat-stat"><strong style="color:var(--sage)">${d.in.toLocaleString(NUM_LOCALE)}</strong> In</div>
+        <div class="cat-stat"><strong style="color:var(--terra)">${d.out.toLocaleString(NUM_LOCALE)}</strong> Out</div>
         <div class="cat-stat"><strong>${net>=0?'+':''}${net}</strong> Net</div>
         <div class="cat-stat"><strong>${fmt(d.valOut)}</strong> Sales</div>
       </div>
@@ -1782,8 +1818,8 @@ function renderMovement() {
 
   document.getElementById('mov-sub').innerHTML = `&nbsp;·&nbsp; ${esc(rangeLabel())}`;
   document.getElementById('mov-kpis').innerHTML = kpiHTML([
-    {cls:'sage',  icon:'↗', label:'Units Received',    value:totalIn.toLocaleString('en-IN'),  sub:`${adds.length} additions`},
-    {cls:'terra', icon:'↘', label:'Units Sold',        value:totalOut.toLocaleString('en-IN'), sub:`${sales.length} transactions`},
+    {cls:'sage',  icon:'↗', label:'Units Received',    value:totalIn.toLocaleString(NUM_LOCALE),  sub:`${adds.length} additions`},
+    {cls:'terra', icon:'↘', label:'Units Sold',        value:totalOut.toLocaleString(NUM_LOCALE), sub:`${sales.length} transactions`},
     {cls:'gold',  icon:'💰', label:'Revenue from Sales', value:fmt(revOut),                    sub:'Incl GST'},
     {cls:'amber', icon:'💸', label:'Purchase Cost',     value:fmt(purchCost),                  sub:'Stock additions'},
   ]);
