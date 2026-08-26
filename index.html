@@ -294,6 +294,7 @@
 
   <div id="app" style="display:none">
 
+    <div id="load-notes" style="display:none"></div>
     <div class="mode-banner" id="mode-banner" style="display:none"></div>
 
     <!-- ═══ LIVE STOCK ═══ -->
@@ -326,72 +327,60 @@
     <!-- ═══ BILLING & PAYMENTS ═══ -->
     <div id="tab-billing" class="tab-content">
       <div class="section-hdr">
-        <div class="section-title">🧾 Billing & Payments <span class="section-sub" id="bill-sub"></span></div>
+        <div class="section-title">🧾 Payments &amp; Profitability <span class="section-sub" id="bill-sub"></span></div>
       </div>
 
-      <!-- Summary KPIs -->
       <div class="summary-grid" id="bill-kpis"></div>
 
-      <!-- Two-col: Revenue by godown + Payment methods -->
       <div class="two-col">
-        <div class="card">
-          <div class="card-title">💰 Revenue by Godown</div>
-          <div id="rev-godown"></div>
-        </div>
-        <div class="card">
-          <div class="card-title">💳 Payment Methods</div>
-          <div id="pay-methods"></div>
+        <div class="card"><div class="card-title">📊 Collection Status</div><div id="pay-status"></div></div>
+        <div class="card"><div class="card-title">🏆 Most Profitable Clients</div><div id="pay-clients"></div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><span id="rev-chart-title">Sales &amp; Collections</span></div>
+        <div class="chart" id="rev-chart"></div>
+        <div class="legend">
+          <div class="lg"><span class="lg-d" style="background:var(--sage)"></span>Collected</div>
+          <div class="lg"><span class="lg-d" style="background:var(--maroon)"></span>Outstanding</div>
         </div>
       </div>
 
-      <!-- Daily revenue chart -->
-      <div class="chart-card">
-        <div class="chart-title">
-          <span id="rev-chart-title">Daily Revenue — Last 30 Days</span>
-          <div class="chart-legend">
-            <span><span class="leg-dot" style="background:var(--sage)"></span>Collected</span>
-            <span><span class="leg-dot" style="background:var(--amber)"></span>Due</span>
-          </div>
+      <div class="tbl-wrap" style="margin-bottom:18px">
+        <div class="tbl-toolbar">
+          <div style="font-weight:600;font-size:13px">⏰ Overdue &amp; Outstanding</div>
+          <div class="res-count" id="due-count"></div>
         </div>
-        <div class="bar-chart" id="rev-chart"></div>
-      </div>
-
-      <!-- Outstanding payments -->
-      <div class="section-hdr">
-        <div style="font-size:14px;font-weight:600;color:var(--maroon)">🔴 Outstanding Payments Due</div>
-        <div class="res-count" id="due-count"></div>
-      </div>
-      <div class="tbl-wrap" style="margin-bottom:24px">
         <div style="overflow-x:auto">
           <table id="due-table">
             <thead><tr>
-              <th onclick="srt('due-table',0)">Due Date</th>
+              <th onclick="srt('due-table',0)">Challan Date</th>
               <th onclick="srt('due-table',1)">Challan</th>
               <th onclick="srt('due-table',2)">Client</th>
-              <th onclick="srt('due-table',3)">Items</th>
-              <th onclick="srt('due-table',4)">Amount Due</th>
-              <th onclick="srt('due-table',5)">Days Overdue</th>
+              <th onclick="srt('due-table',3)">Total Sales</th>
+              <th onclick="srt('due-table',4)">Collected</th>
+              <th onclick="srt('due-table',5)">Balance Due</th>
+              <th onclick="srt('due-table',6)">Age</th>
             </tr></thead>
             <tbody id="due-tbody"></tbody>
           </table>
         </div>
       </div>
 
-      <!-- All transactions -->
-      <div class="section-hdr">
-        <div style="font-size:14px;font-weight:600">All Sales Transactions</div>
-      </div>
       <div class="tbl-wrap">
         <div class="tbl-toolbar">
-          <input class="search" type="text" placeholder="Search client, challan, item…" id="bill-search" oninput="filterBillingTable()">
+          <input class="search" type="text" placeholder="Search challan, client…" id="bill-search" oninput="filterBillingTable()">
           <select class="fsel" id="bill-pay-filter" onchange="filterBillingTable()">
-            <option value="">All Payments</option>
-            <option value="paid">Fully Paid</option>
-            <option value="due">Payment Due</option>
-            <option value="part">Partially Paid</option>
+            <option value="">All Statuses</option>
+            <option value="Paid">Paid</option>
+            <option value="Partial">Partial</option>
+            <option value="Unpaid">Unpaid</option>
           </select>
-          <select class="fsel" id="bill-method-filter" onchange="filterBillingTable()">
-            <option value="">All Methods</option>
+          <select class="fsel" id="bill-margin-filter" onchange="filterBillingTable()">
+            <option value="">All Margins</option>
+            <option value="loss">Loss-making</option>
+            <option value="thin">Thin (&lt;10%)</option>
+            <option value="healthy">Healthy (&ge;20%)</option>
           </select>
           <div class="res-count" id="bill-count"></div>
         </div>
@@ -401,20 +390,20 @@
               <th onclick="srt('bill-table',0)">Date</th>
               <th onclick="srt('bill-table',1)">Challan</th>
               <th onclick="srt('bill-table',2)">Client</th>
-              <th onclick="srt('bill-table',3)">Item</th>
-              <th onclick="srt('bill-table',4)">Godown</th>
-              <th onclick="srt('bill-table',5)">Qty</th>
-              <th onclick="srt('bill-table',6)">Unit Price</th>
-              <th onclick="srt('bill-table',7)">Total (incl GST)</th>
-              <th onclick="srt('bill-table',8)">Paid</th>
-              <th onclick="srt('bill-table',9)">Due</th>
-              <th onclick="srt('bill-table',10)">Method</th>
-              <th onclick="srt('bill-table',11)">Status</th>
+              <th onclick="srt('bill-table',3)">Items</th>
+              <th onclick="srt('bill-table',4)">Total Sales</th>
+              <th onclick="srt('bill-table',5)">Collected</th>
+              <th onclick="srt('bill-table',6)">Balance Due</th>
+              <th onclick="srt('bill-table',7)">Profit / Loss</th>
+              <th onclick="srt('bill-table',8)">Margin %</th>
+              <th onclick="srt('bill-table',9)">Paid On</th>
+              <th onclick="srt('bill-table',10)">Status</th>
             </tr></thead>
             <tbody id="bill-tbody"></tbody>
           </table>
         </div>
       </div>
+      <div id="bill-detail" style="margin-top:18px"></div>
     </div>
 
     <!-- ═══ MONEY IN STOCK ═══ -->
@@ -494,6 +483,7 @@
             <option value="part">Partially Paid</option>
             <option value="paid">Fully Paid</option>
             <option value="nocost">No Cost Recorded</option>
+            <option value="check">Balance Mismatch</option>
           </select>
           <div class="res-count" id="payout-count"></div>
         </div>
@@ -540,22 +530,30 @@
 <script>
 // ── CONFIG ────────────────────────────────────────────────────────────────────
 const SHEET_ID    = '1WJKQ2euCVVSO-74pfLpHWW1LacFWjbaMQaQk9rmr998';
-const GID_INV      = 0;             // Inventory Data
-const GID_SALES    = 1644576672;    // Stock Reductions (sales log)
-const GID_ADD      = 1352294952;    // Stock Additions (purchases)
+const GID_LIVE     = 462933353;     // Live Stock — product master: balances, category, pricing
+const GID_INV      = 0;             // Inventory Data — kept only for Reorder Level
+const GID_SALES    = 1644576672;    // Stock Reductions (line-item sales log)
+const GID_PAY      = 1280253569;    // Payment Tracker (challan-level sales & payments)
+const GID_ADD      = 663363817;     // New stock additions (purchases & payouts)
+const GST_RATE     = 0.18;          // every rupee figure in these sheets is GST-inclusive
 const BASE         = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=`;
 const GODOWNS     = ['Sebby','Rene','Amey','Anupa','Dorma','Godwin'];
 const COLOURS     = ['--sage','--terra','--amber','--slate','--maroon','--gold','--sage','--terra'];
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
-let INV = [], SALES = [], ADDITIONS = [];
+let LIVE = [], INV = [], SALES = [], ADDITIONS = [], PAYMENTS = [];
+let REORDER_LVL = {};   // SKU -> reorder level, the one thing Live Stock doesn't carry
+let loadNotes = [];     // data-integrity warnings surfaced in the UI
 let activeGd = 'All';
 let selectedCat = null;
 let sortState = {};
 let _billRows = [];
+let _openChallan = null;
 
 // ── FILTER STATE ──────────────────────────────────────────────────────────────
-let SKUMAP = {};                 // SKU -> {name, cat, purch, sale, row}
+let SKUMAP = {};                 // SKU -> {name, cat, purch, sale, margin, marginPct, row}
+let CHALLAN_CAT = {};            // challan -> Set(category), joined via Stock Reductions
+let CHALLAN_LINES = {};          // challan -> line items from Stock Reductions
 let activeTab = 'live-stock';
 const SNAPSHOT_TABS = ['live-stock','money','categories','reorder'];
 const FILTERS = { preset:'all', from:'', to:'', sku:'', q:'', cat:'' };
@@ -638,13 +636,15 @@ function makeBuckets(){
 }
 
 // ── MATCHERS ──────────────────────────────────────────────────────────────────
-function catOfRow(r){ return r['Item Type']||r['Product Type']||'Uncategorised'; }
+function catOfRow(r){ return (r['Product Category']||'').trim() || 'Uncategorised'; }
 function catOfSku(s){ return (SKUMAP[s]&&SKUMAP[s].cat)||'Uncategorised'; }
 function nameOfSku(s){ return (SKUMAP[s]&&SKUMAP[s].name)||''; }
-function purchRate(s){ return (SKUMAP[s]&&SKUMAP[s].purch)||0; }
+function purchRate(s){ return (SKUMAP[s]&&SKUMAP[s].purch)||0; }   // incl GST
+function marginPctOf(s){ return (SKUMAP[s]&&SKUMAP[s].marginPct)||0; }
+function marginInrOf(s){ return (SKUMAP[s]&&SKUMAP[s].margin)||0; }
 function saleRateOf(s){ return (SKUMAP[s]&&SKUMAP[s].sale)||0; }
 function curBal(s){ const row=SKUMAP[s]&&SKUMAP[s].row; return row?totBal(row):0; }
-function reorderLvl(s){ const row=SKUMAP[s]&&SKUMAP[s].row; return row?n(row['Reorder Level']):0; }
+function reorderLvl(s){ return REORDER_LVL[s]||0; }
 
 function matchItem(sku, name){
   if(FILTERS.sku && (sku||'') !== FILTERS.sku) return false;
@@ -656,28 +656,49 @@ function matchItem(sku, name){
 }
 function matchCat(cat){ return !FILTERS.cat || cat===FILTERS.cat; }
 function addDateOf(r){ return r['Delivery Date']||r['Invoice Date']||r['Order Placed Date']||''; }
+function addItemName(r){ return r['Item']||r['Item Name']||''; }
 function hasAddDate(r){ return !!toISO(addDateOf(r)); }
 // Purchase cost as billed in the sheet. No rate-based estimate: an estimate would
 // silently disagree with the sheet's own totals, and a blank cost is real information.
 function addCost(r){ return n(r['Total cost incl GST']); }
+function addGoodsCost(r){ return n(r['Total Cost of goods']); }
+function addFreight(r){ return n(r['Freight Cost (incl GST)']); }
 function addPaid(r){ return n(r['Paid amount']) || n(r['Payment Made so far']); }
-function addBalance(r){
-  const bal = n(r['Balance Payment']);
-  if(bal) return bal;
-  const cost = addCost(r), paid = addPaid(r);
-  return cost > paid ? cost - paid : 0;
+// Trust the sheet's own Balance Payment column. Deriving cost-minus-paid where it is
+// blank would silently disagree with the sheet's totals; mismatches are flagged instead.
+function addBalance(r){ return n(r['Balance Payment']); }
+function addBalanceMismatch(r){
+  const c = addCost(r), p = addPaid(r), b = addBalance(r);
+  return c > 0 && Math.abs((c - p) - b) > 1;
 }
 function addStatus(r){
   const cost = addCost(r);
   if(cost <= 0) return 'nocost';
+  if(addBalanceMismatch(r)) return 'check';
   const bal = addBalance(r), paid = addPaid(r);
   if(bal <= 0) return 'paid';
   return paid > 0 ? 'part' : 'unpaid';
 }
 
-function fINV(){ return INV.filter(r => matchItem(r['SKU'], itemInfo(r).name) && matchCat(catOfRow(r))); }
+function fINV(){ return LIVE.filter(r => matchItem(r['SKU'], r['ITEM NAME']) && matchCat(catOfRow(r))); }
+function fPAY(){
+  return PAYMENTS.filter(r => {
+    if(!inRange(r['Challan Date'])) return false;
+    if(FILTERS.cat){
+      const set = CHALLAN_CAT[(r['Challan']||'').trim()];
+      if(!set || !set.has(FILTERS.cat)) return false;
+    }
+    if(FILTERS.sku || FILTERS.q){
+      const lines = challanLines((r['Challan']||'').trim());
+      if(!lines.some(l => matchItem((l['SKU']||'').trim(), l['Item Name']))) return false;
+    }
+    return true;
+  });
+}
+function challanLines(ch){ return (CHALLAN_LINES[ch]||[]); }
+function payCollected(r){ return n(r['Total Paid']) + n(r['Late payments']); }
 function fSALES(){ return SALES.filter(r => inRange(r['Date']) && matchItem(r['SKU'], r['Item Name']) && matchCat(catOfSku(r['SKU']))); }
-function fADD(){ return ADDITIONS.filter(r => inRange(addDateOf(r)) && matchItem(r['SKU'], r['Item Name']||r['Item']) && matchCat(catOfSku(r['SKU']))); }
+function fADD(){ return ADDITIONS.filter(r => inRange(addDateOf(r)) && matchItem(r['SKU'], addItemName(r)) && matchCat(catOfSku(r['SKU']))); }
 
 // Per-SKU movement inside the active range (optionally scoped to one godown)
 function movementBySku(gd){
@@ -690,7 +711,7 @@ function movementBySku(gd){
   fADD().forEach(r => {
     if(gd && gd!=='All' && (r['Godown']||'') !== gd) return;
     const s = r['SKU']||'', q = n(r['Qty Added']);
-    const o = touch(s, r['Item Name']||r['Item']);
+    const o = touch(s, addItemName(r));
     o.qtyIn += q; o.valIn += addCost(r); o.txIn++;
   });
   fSALES().forEach(r => {
@@ -709,7 +730,7 @@ function soldMapBySku(){
 
 // ── FILTER BAR ────────────────────────────────────────────────────────────────
 function initFilterUI(){
-  const cats = [...new Set(INV.map(catOfRow))].filter(Boolean).sort();
+  const cats = [...new Set(LIVE.map(catOfRow))].filter(c=>c&&c!=='Uncategorised').sort();
   document.getElementById('f-cat').innerHTML =
     '<option value="">All categories</option>' +
     cats.map(c=>`<option value="${esc(c)}"${FILTERS.cat===c?' selected':''}>${esc(c)}</option>`).join('');
@@ -781,6 +802,15 @@ function renderChips(){
     : `<span class="chip-none">No filters — showing everything, all time.</span>`;
 }
 
+function renderLoadNotes(){
+  const host = document.getElementById('load-notes');
+  if(!host) return;
+  host.innerHTML = loadNotes.length
+    ? loadNotes.map(t=>`<div class="mode-banner" style="margin-bottom:10px">⚠️ ${esc(t)}</div>`).join('')
+    : '';
+  host.style.display = loadNotes.length ? 'block' : 'none';
+}
+
 function updateModeBanner(){
   const b = document.getElementById('mode-banner');
   if(!b) return;
@@ -796,30 +826,46 @@ function updateModeBanner(){
 }
 
 // ── CSV PARSER ────────────────────────────────────────────────────────────────
+// Splits on real record boundaries: a newline inside a quoted field is data, not a
+// row break. Blank lines are preserved so headerRowIndex still lines up with the
+// row numbers you see in Google Sheets (index 0 = sheet row 1).
 function parseCSV(text, headerRowIndex = 0) {
-  const lines = text.replace(/\r/g,'').split('\n').filter(l => l.trim());
-  if (lines.length <= headerRowIndex) return { headers:[], rows:[] };
+  const records = csvRecords(text.replace(/\r\n/g,'\n').replace(/\r/g,'\n'));
+  if (records.length <= headerRowIndex) return { headers:[], rows:[] };
 
-  const headers = csvRow(lines[headerRowIndex]);
-  const rows = lines.slice(headerRowIndex + 1).map(l => {
-    const cols = csvRow(l);
+  const headers = records[headerRowIndex].map(h => (h||'').trim());
+  const seen = {};
+  const keys = headers.map(h => {
+    if (!h) return '';
+    if (seen[h]) { seen[h]++; return `${h} (${seen[h]})`; }   // keep duplicate headers distinct
+    seen[h] = 1; return h;
+  });
+
+  const rows = records.slice(headerRowIndex + 1).map(cols => {
     const obj = {};
-    headers.forEach((h, i) => { if (h.trim()) obj[h.trim()] = (cols[i]||'').trim(); });
+    keys.forEach((k, i) => { if (k) obj[k] = (cols[i]||'').trim(); });
     return obj;
   }).filter(r => Object.values(r).some(v => v));
-  return { headers, rows };
+  return { headers: keys, rows };
 }
 
-function csvRow(line) {
-  const cols = []; let cur = '', inQ = false;
-  for (let c = 0; c < line.length; c++) {
-    const ch = line[c];
-    if (ch === '"') { inQ = !inQ; continue; }
-    if (ch === ',' && !inQ) { cols.push(cur); cur = ''; }
+function csvRecords(text) {
+  const out = [];
+  let row = [], cur = '', inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inQ) {
+      if (ch === '"') {
+        if (text[i+1] === '"') { cur += '"'; i++; }   // escaped quote
+        else inQ = false;
+      } else cur += ch;
+    } else if (ch === '"') { inQ = true; }
+    else if (ch === ',') { row.push(cur); cur = ''; }
+    else if (ch === '\n') { row.push(cur); out.push(row); row = []; cur = ''; }
     else cur += ch;
   }
-  cols.push(cur);
-  return cols.map(s => s.trim());
+  if (cur !== '' || row.length) { row.push(cur); out.push(row); }
+  return out;
 }
 
 // ── NUMBER HELPER ─────────────────────────────────────────────────────────────
@@ -828,6 +874,9 @@ function n(v) {
   return parseFloat(String(v).replace(/[₹,\s%#]/g,'').replace(/[^\d.-]/g,'')) || 0;
 }
 function fmt(v) { return v ? '₹' + Math.round(v).toLocaleString('en-IN') : '—'; }
+// Sheet figures are GST-inclusive, so the base is the inclusive amount divided by 1+rate
+function exGST(v){ return v / (1 + GST_RATE); }
+function gstOf(v){ return v - exGST(v); }
 function fmtD(v) { return v || '—'; }
 
 // ── DATE PARSING ──────────────────────────────────────────────────────────────
@@ -862,41 +911,72 @@ async function fetchSheet(gid, headerRowIndex = 0) {
 async function loadAll() {
   document.getElementById('loading').style.display = 'flex';
   document.getElementById('app').style.display = 'none';
+  loadNotes = [];
   try {
-    const [invData, salesData, addData] = await Promise.all([
-      fetchSheet(GID_INV, 0),
-      fetchSheet(GID_SALES, 2),   // header is row 3 (index 2) in Stock Reductions
-      fetchSheet(GID_ADD, 1),     // header is row 2 — row 1 is the totals strip
+    const [liveData, invData, salesData, payData, addData] = await Promise.all([
+      fetchSheet(GID_LIVE,  7),   // Live Stock — headers on row 8
+      fetchSheet(GID_INV,   0),   // Inventory Data — headers on row 1
+      fetchSheet(GID_SALES, 2),   // Stock Reductions — headers on row 3
+      fetchSheet(GID_PAY,  11),   // Payment Tracker — headers on row 12
+      fetchSheet(GID_ADD,   1),   // New stock additions — headers on row 2
     ]);
 
-    // Inventory: col A1 is a client name — remap to 'Item Name'
-    INV = invData.rows.filter(r => r['Masterpiece Interiors and contractors'] || r['Item Name'] || r['SKU']);
-    INV.forEach(r => {
-      if (!r['Item Name']) r['Item Name'] = r['Masterpiece Interiors and contractors'] || '';
-    });
+    // ── Live Stock is now the product master ────────────────────────────────
+    LIVE = liveData.rows.filter(r => (r['SKU']||'').trim());
+
+    // Live Stock sits under WAREHOUSE / IN STOCK ONLY dropdowns. If someone leaves
+    // one set, this sheet returns a filtered subset and every total silently shrinks.
+    INV = invData.rows.filter(r => (r['SKU']||'').trim());
+    if (INV.length && LIVE.length < INV.length * 0.8) {
+      loadNotes.push(`Live Stock returned ${LIVE.length} SKUs but Inventory Data has ${INV.length}. `
+        + `Check the WAREHOUSE / IN STOCK ONLY dropdowns on the Live Stock sheet — a filter left set there will understate every figure here.`);
+    }
+
+    // Reorder Level is the one field Live Stock doesn't carry
+    REORDER_LVL = {};
+    INV.forEach(r => { const s=(r['SKU']||'').trim(); if(s) REORDER_LVL[s] = n(r['Reorder Level']); });
 
     SALES = salesData.rows.filter(r => r['Date'] && (r['Qty Sold'] || r['Actual Total Selling Price incl GST']));
 
-    // Stock Additions columns: Order Placed Date, Invoice Date, Payment Due Date, Delivery Date,
-    //   Item, SKU, Item Name, Godown, Qty Added, Notes / PO Reference No.
+    // ── Payment Tracker: one row per challan ────────────────────────────────
+    // Row 13 of the sheet is a formula template ("Date"/"Challan Number" literals) — drop it.
+    // "Kaushik" rows are dummy adjustment entries, excluded at source per Rutuja.
+    const payAll = payData.rows.filter(r => (r['Challan']||'').trim() && (r['Challan']||'').trim() !== 'Challan Number');
+    PAYMENTS = payAll.filter(r => !isDummyChallan(r));
+    const dropped = payAll.length - PAYMENTS.length;
+    if (dropped) loadNotes.push(`${dropped} adjustment ${dropped===1?'entry':'entries'} marked "Kaushik" excluded from all payment figures.`);
+
     ADDITIONS = addData.rows.filter(r => (r['SKU']||'').trim() && n(r['Qty Added']) > 0);
 
-    // Master SKU index — powers the product/category filters across every sheet
+    // ── Master SKU index ────────────────────────────────────────────────────
     SKUMAP = {};
-    INV.forEach(r => {
-      const s = r['SKU']; if(!s) return;
+    LIVE.forEach(r => {
+      const s = (r['SKU']||'').trim(); if(!s) return;
       SKUMAP[s] = {
-        name:  itemInfo(r).name,
-        cat:   r['Item Type'] || r['Product Type'] || 'Uncategorised',
-        purch: n(r['Per Unit Purchase Rate'] || r['Purchase Rate'] || 0),
-        sale:  n(r['Sale Rate (incl GST)'] || 0),
-        row:   r,
+        name:   r['ITEM NAME'] || '',
+        cat:    (r['Product Category']||'').trim() || 'Uncategorised',
+        purch:  n(r['Purchase Price incl GST']),      // incl GST
+        sale:   n(r['Sales Price including GST']),    // incl GST
+        margin: n(r['Margin in INR']),
+        marginPct: n(r['Margin in %']),
+        row:    r,
       };
     });
     // SKUs that appear only in the movement sheets still deserve a filter entry
     [...SALES, ...ADDITIONS].forEach(r => {
-      const s = r['SKU']; if(!s || SKUMAP[s]) return;
-      SKUMAP[s] = {name: r['Item Name'] || r['Item'] || '', cat:'Uncategorised', purch:0, sale:0, row:null};
+      const s = (r['SKU']||'').trim(); if(!s || SKUMAP[s]) return;
+      SKUMAP[s] = {name: r['Item Name'] || r['Item'] || '', cat: (r['Product Category']||'').trim() || 'Uncategorised',
+                   purch:0, sale:0, margin:0, marginPct:0, row:null};
+    });
+
+    // Challan -> category set, so the global category filter reaches the Payments tab
+    // (Payment Tracker's own Product Category column is empty in every row).
+    CHALLAN_CAT = {}; CHALLAN_LINES = {};
+    SALES.forEach(r => {
+      const c = (r['Challan Number']||'').trim(); if(!c) return;
+      const cat = catOfSku((r['SKU']||'').trim());
+      (CHALLAN_CAT[c] = CHALLAN_CAT[c] || new Set()).add(cat);
+      (CHALLAN_LINES[c] = CHALLAN_LINES[c] || []).push(r);
     });
 
     document.getElementById('rt').textContent =
@@ -905,6 +985,7 @@ async function loadAll() {
     initFilterUI();
     renderChips();
     renderAll();
+    renderLoadNotes();
     document.getElementById('loading').style.display = 'none';
     document.getElementById('app').style.display = 'block';
   } catch(e) {
@@ -930,24 +1011,26 @@ function renderAll() {
 }
 
 // ── INVENTORY HELPERS ─────────────────────────────────────────────────────────
-function gdBal(row, gi) {
-  const inKeys  = ['Stock In Sebby Godown','Stock In Rene Godown','Stock In Amey Godown','Stock In Anupa godown','Stock In  Dorma Godown','Stock-in Godwin Godown'];
-  const outKeys = ['Stock out Sebby Godown','Stock out Rene godown','Stock out Amey godown','Stock out Anupa godown','Stock out Dorma godown','Stock-out Godwin Godown'];
-  return n(row[inKeys[gi]]) - n(row[outKeys[gi]]);
+// Live Stock already holds net balances per godown — no in/out arithmetic needed
+const GD_COLS = ['SEBBY','RENE','AMEY','ANUPA','DORMA','GODWIN'];
+function gdBal(row, gi) { return n(row[GD_COLS[gi]]); }
+function totBal(row) { return n(row['TOTAL']); }
+function isDummyChallan(r){
+  const blob = ((r['Client Name']||'') + ' ' + (r['Challan']||'')).toLowerCase();
+  return blob.includes('kaushik');
 }
-function totBal(row) { return n(row['Total Stock Balance']); }
 function sbadge(v) {
   if (v <= 0)  return `<span class="badge b-zero">0</span>`;
   if (v <= 5)  return `<span class="badge b-low">${v}</span>`;
   return `<span class="badge b-ok">${v}</span>`;
 }
 function itemInfo(row) {
-  const name  = row['Item Name'] || '';
-  const desc  = row['Item Description'] || '';
-  const sizeW = row['Size/Width'] || '';
-  const sizeL = row['Size /lenght'] || '';
-  const size  = [sizeW, sizeL].filter(s => s && s !== 'N/A').join(' × ');
-  return { name, desc, size };
+  const full = row['ITEM NAME'] || row['Item Name'] || '';
+  // Live Stock item names read "Company - Description [Category] size"; split on the first dash
+  const dash = full.indexOf(' - ');
+  const name = dash > 0 ? full.slice(0, dash) : full;
+  const desc = dash > 0 ? full.slice(dash + 3) : '';
+  return { name, desc, size: '' };
 }
 function kpiHTML(list, small){
   return list.map(k=>`<div class="kpi ${k.cls}"><div class="kpi-icon">${k.icon}</div><div class="kpi-label">${k.label}</div><div class="kpi-value"${small?' style="font-size:20px"':''}>${k.value}</div><div class="kpi-sub">${k.sub}</div></div>`).join('');
@@ -1003,7 +1086,7 @@ function renderLiveStockSnapshot(){
     <th onclick="srt('stock-table',1)">SKU</th>
     ${GODOWNS.map((g,i)=>`<th onclick="srt('stock-table',${i+2})">${g}</th>`).join('')}
     <th onclick="srt('stock-table',8)">Total</th>
-    <th onclick="srt('stock-table',9)">Sale Rate</th>
+    <th onclick="srt('stock-table',9)">Sale Price</th>
   </tr>`;
   renderStockTable();
 }
@@ -1088,7 +1171,7 @@ function renderStockTable() {
   document.getElementById('ls-tbody').innerHTML = rows.map(row => {
     const info = itemInfo(row);
     const bals = GODOWNS.map((_,gi) => gdBal(row,gi));
-    const sr   = n(row['Sale Rate (incl GST)']);
+    const sr   = n(row['Sales Price including GST']);
     return `<tr>
       <td><div class="nm">${esc(info.name)}</div><div class="ds">${esc(info.desc)}${info.size?' · '+esc(info.size):''}</div></td>
       <td><span class="sku">${esc(row['SKU']||'')}</span></td>
@@ -1099,147 +1182,165 @@ function renderStockTable() {
   }).join('') || emptyRow(10,'📭','No items match');
 }
 
-// ── TAB 2: BILLING & PAYMENTS ─────────────────────────────────────────────────
+// ── TAB 2: PAYMENTS & PROFITABILITY (Payment Tracker sheet) ──────────────────
 function renderBilling() {
   const now = new Date();
-  const src = fSALES();
-
-  const rows = src.map(r => {
-    const totalSale = n(r['Actual Total Selling Price incl GST']);
-    const paid      = n(r['Payment Made']);
-    const due       = n(r['Payment Due']);
-    const dueDate   = parseDate(r['Payment Due Date']);
-    return Object.assign({}, r, {
-      totalSale, paid, due,
-      gst:     totalSale/1.18*0.18,
-      baseAmt: totalSale/1.18,
-      daysOd:  dueDate ? daysBetween(dueDate, now) : null,
-      payStatus: due<=0 && paid>0 ? 'paid' : paid>0 && due>0 ? 'part' : 'due',
-    });
-  });
+  const rows = fPAY().map(r => {
+    const ch      = (r['Challan']||'').trim();
+    const sales   = n(r['Total Sales']);
+    const paid    = n(r['Total Paid']);
+    const late    = n(r['Late payments']);
+    const coll    = paid + late;                 // reconciles to the sheet's own header
+    const due     = n(r['Balance Due']);
+    const pl      = n(r['Profit / Loss']);
+    const mpct    = n(r['Gross Margin Per Order']);
+    const status  = (r['Payment Status']||'').trim() || '—';
+    const cd      = parseDate(r['Challan Date']);
+    const lines   = challanLines(ch);
+    return {
+      ch, sales, paid, late, coll, due, pl, mpct, status,
+      date:    r['Challan Date']||'',
+      client:  (r['Client Name']||'').trim() || '—',
+      phone:   (r['Client Phone Number']||'').trim(),
+      payDate: r['Payment Date']||'',
+      remarks: (r['Remarks']||'').trim(),
+      items:   lines.length,
+      age:     (due > 0 && cd) ? daysBetween(cd, now) : null,
+      lines,
+    };
+  }).sort((a,b)=>(toISO(b.date)||'').localeCompare(toISO(a.date)||''));
   _billRows = rows;
 
-  const totalRev  = rows.reduce((s,r)=>s+r.totalSale,0);
-  const totalColl = rows.reduce((s,r)=>s+r.paid,0);
-  const totalDue  = rows.reduce((s,r)=>s+r.due,0);
-  const totalGST  = rows.reduce((s,r)=>s+r.gst,0);
-  const todayISO  = isoOf(startOfDay(now));
-  const todayRev  = rows.filter(r=>toISO(r['Date'])===todayISO).reduce((s,r)=>s+r.totalSale,0);
-  const monthRev  = rows.filter(r=>{const d=parseDate(r['Date']); return d&&d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();}).reduce((s,r)=>s+r.totalSale,0);
+  const tSales = rows.reduce((s,r)=>s+r.sales,0);
+  const tColl  = rows.reduce((s,r)=>s+r.coll,0);
+  const tDue   = rows.reduce((s,r)=>s+r.due,0);
+  const tPL    = rows.reduce((s,r)=>s+r.pl,0);
+  const losses = rows.filter(r=>r.pl<0);
 
-  document.getElementById('bill-sub').innerHTML = `&nbsp;·&nbsp; ${esc(rangeLabel())} · ${rows.length} transactions`;
+  document.getElementById('bill-sub').innerHTML =
+    `&nbsp;·&nbsp; ${esc(rangeLabel())} · ${rows.length} challans`;
+
   document.getElementById('bill-kpis').innerHTML = [
-    {label:'Total Revenue',   value:fmt(totalRev),   color:'var(--ink)'},
-    {label:'Collected',       value:fmt(totalColl),  color:'var(--sage)'},
-    {label:'Outstanding',     value:fmt(totalDue),   color:'var(--maroon)'},
-    {label:'GST Component',   value:fmt(totalGST),   color:'var(--slate)'},
-    {label:'Today',           value:fmt(todayRev),   color:'var(--terra)'},
-    {label:'This Month',      value:fmt(monthRev),   color:'var(--amber)'},
+    {label:'Total Sales (incl GST)', value:fmt(tSales), color:'var(--ink)'},
+    {label:'Collected',              value:fmt(tColl),  color:'var(--sage)'},
+    {label:'Outstanding',            value:fmt(tDue),   color:'var(--maroon)'},
+    {label:'Profit / Loss',          value:fmt(tPL),    color:tPL>=0?'var(--sage)':'var(--maroon)'},
+    {label:'Blended Margin',         value:tSales>0?(tPL/tSales*100).toFixed(1)+'%':'—', color:'var(--gold)'},
+    {label:'GST in Sales',           value:fmt(gstOf(tSales)), color:'var(--slate)'},
+    {label:'Loss-making Orders',     value:losses.length, color:losses.length?'var(--maroon)':'var(--ink-mute)'},
+    {label:'Collection Rate',        value:tSales>0?Math.round(tColl/tSales*100)+'%':'—', color:'var(--terra)'},
   ].map(k=>`<div class="sum-card"><div class="sum-label">${k.label}</div><div class="sum-value" style="color:${k.color}">${k.value}</div></div>`).join('');
 
-  // Revenue by godown
-  const gdRevMap = {};
-  rows.forEach(r => { const g=r['Godown']||'Unknown'; gdRevMap[g]=(gdRevMap[g]||0)+r.totalSale; });
-  const gdEntries = Object.entries(gdRevMap).sort((a,b)=>b[1]-a[1]);
-  const maxGd = gdEntries[0]?.[1]||1;
-  document.getElementById('rev-godown').innerHTML = gdEntries.map(([g,v],i)=>`
-    <div class="bar-row">
-      <div class="bar-hdr"><span style="font-weight:500">${esc(g)}</span><span style="color:var(--ink-mute)">${fmt(v)}</span></div>
-      <div class="bar-track"><div class="bar-fill" style="width:${Math.round(v/maxGd*100)}%;background:var(${COLOURS[i%COLOURS.length]})"></div></div>
-    </div>`).join('') || `<div class="empty" style="padding:18px"><p>No sales in this range</p></div>`;
+  // Collection status by value
+  const stMap={};
+  rows.forEach(r=>{ stMap[r.status]=(stMap[r.status]||0)+r.sales; });
+  document.getElementById('pay-status').innerHTML = barsHTML(stMap,'No challans in this range');
 
-  // Payment methods
-  const methMap = {};
-  rows.forEach(r => { const m=(r['Payment Method']||'Unknown').trim(); methMap[m]=(methMap[m]||0)+r.paid; });
-  const methEntries = Object.entries(methMap).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
-  const maxM = methEntries[0]?.[1]||1;
-  document.getElementById('pay-methods').innerHTML = methEntries.map(([m,v],i)=>`
-    <div class="bar-row">
-      <div class="bar-hdr"><span style="font-weight:500">${esc(m)}</span><span style="color:var(--ink-mute)">${fmt(v)}</span></div>
-      <div class="bar-track"><div class="bar-fill" style="width:${Math.round(v/maxM*100)}%;background:var(${COLOURS[i%COLOURS.length]})"></div></div>
-    </div>`).join('') || `<div class="empty" style="padding:18px"><p>No payments in this range</p></div>`;
+  // Most profitable clients
+  const clMap={};
+  rows.forEach(r=>{ if(r.pl>0) clMap[r.client]=(clMap[r.client]||0)+r.pl; });
+  const top = Object.fromEntries(Object.entries(clMap).sort((a,b)=>b[1]-a[1]).slice(0,8));
+  document.getElementById('pay-clients').innerHTML = barsHTML(top,'No profitable orders in this range');
 
-  const methods = [...new Set(rows.map(r=>(r['Payment Method']||'').trim()).filter(Boolean))].sort();
-  const mf = document.getElementById('bill-method-filter');
-  const keepM = mf.value;
-  mf.innerHTML = '<option value="">All Methods</option>' + methods.map(m=>`<option value="${esc(m)}"${keepM===m?' selected':''}>${esc(m)}</option>`).join('');
-
-  // Revenue chart across the active range
+  // Sales vs collections over the active range
   const bk = makeBuckets();
   bk.values = bk.keys.map(()=>({a:0,b:0}));
-  rows.forEach(r=>{
-    const i = bk.bucketOf(r['Date']);
-    if(i>=0){ bk.values[i].a += r.paid; bk.values[i].b += r.due; }
-  });
-  document.getElementById('rev-chart-title').textContent = `${bk.unitName} Revenue — ${rangeLabel()}`;
+  rows.forEach(r=>{ const i=bk.bucketOf(r.date); if(i>=0){ bk.values[i].a += r.coll; bk.values[i].b += r.due; } });
+  document.getElementById('rev-chart-title').textContent = `${bk.unitName} Sales & Collections — ${rangeLabel()}`;
   document.getElementById('rev-chart').innerHTML = barChartHTML(bk, [
-    {name:'Collected', cls:'in-b',  fmt:v=>fmt(v)},
-    {name:'Due',       cls:'out-b', fmt:v=>fmt(v)},
+    {name:'Collected',   cls:'in-b',  fmt:v=>fmt(v)},
+    {name:'Outstanding', cls:'out-b', fmt:v=>fmt(v)},
   ]);
 
-  // Outstanding, grouped by challan
-  const dueRows = rows.filter(r=>r.due>0).sort((a,b)=>(b.daysOd||0)-(a.daysOd||0));
-  const dueByChallan = {};
-  dueRows.forEach(r=>{
-    const c = r['Challan Number']||'—';
-    if(!dueByChallan[c]) dueByChallan[c]={challan:c, client:r['Client Name']||'—', dueDate:r['Payment Due Date']||'', due:0, items:0, daysOd:r.daysOd};
-    dueByChallan[c].due += r.due; dueByChallan[c].items++;
-  });
-  const dueList = Object.values(dueByChallan).sort((a,b)=>(b.daysOd||0)-(a.daysOd||0));
-  document.getElementById('due-count').textContent = `${dueList.length} challans · ${fmt(totalDue)}`;
-  document.getElementById('due-tbody').innerHTML = dueList.map(c=>{
-    const od = c.daysOd;
-    const odStr = od===null?'—':od>0?`<span style="color:var(--maroon);font-weight:600">${od}d overdue</span>`:`<span style="color:var(--amber)">Due in ${Math.abs(od)}d</span>`;
+  // Outstanding, oldest first
+  const dueRows = rows.filter(r=>r.due>0).sort((a,b)=>(b.age||0)-(a.age||0));
+  document.getElementById('due-count').textContent = `${dueRows.length} challans · ${fmt(tDue)}`;
+  document.getElementById('due-tbody').innerHTML = dueRows.map(r=>{
+    const ageStr = r.age===null ? '—'
+      : r.age>90 ? `<span style="color:var(--maroon);font-weight:700">${r.age}d</span>`
+      : r.age>45 ? `<span style="color:var(--terra);font-weight:600">${r.age}d</span>`
+      : `<span style="color:var(--amber)">${r.age}d</span>`;
     return `<tr>
-      <td>${esc(c.dueDate||'—')}</td>
-      <td><span class="sku">${esc(c.challan)}</span></td>
-      <td><div class="nm">${esc(c.client)}</div></td>
-      <td style="text-align:center">${c.items}</td>
-      <td style="text-align:right;font-weight:700;color:var(--maroon)">${fmt(c.due)}</td>
-      <td>${odStr}</td>
+      <td>${esc(r.date||'—')}</td>
+      <td><span class="sku">${esc(r.ch)}</span></td>
+      <td><div class="nm">${esc(r.client)}</div><div class="ds">${esc(r.phone)}</div></td>
+      <td style="text-align:right">${fmt(r.sales)}</td>
+      <td style="text-align:right;color:var(--sage)">${r.coll?fmt(r.coll):'—'}</td>
+      <td style="text-align:right;font-weight:700;color:var(--maroon)">${fmt(r.due)}</td>
+      <td>${ageStr}</td>
     </tr>`;
-  }).join('') || emptyRow(6,'✅','Nothing outstanding in this range');
+  }).join('') || emptyRow(7,'✅','Nothing outstanding in this range');
 
   filterBillingTable();
 }
 
 function filterBillingTable() {
-  const search  = (document.getElementById('bill-search').value||'').toLowerCase();
-  const payF    = document.getElementById('bill-pay-filter').value;
-  const methF   = document.getElementById('bill-method-filter').value;
+  const search = (document.getElementById('bill-search').value||'').toLowerCase();
+  const stF    = document.getElementById('bill-pay-filter').value;
+  const mgF    = document.getElementById('bill-margin-filter').value;
 
   const rows = _billRows.filter(r => {
-    const ms = !search || (r['Client Name']||'').toLowerCase().includes(search)
-      || (r['Challan Number']||'').toLowerCase().includes(search)
-      || (r['Item Name']||'').toLowerCase().includes(search)
-      || (r['SKU']||'').toLowerCase().includes(search);
-    const mp = !payF || r.payStatus===payF;
-    const mm = !methF || (r['Payment Method']||'').trim()===methF;
+    const ms = !search || r.client.toLowerCase().includes(search) || r.ch.toLowerCase().includes(search);
+    const mp = !stF || r.status === stF;
+    const mm = !mgF || (mgF==='loss' && r.pl<0) || (mgF==='thin' && r.mpct>0 && r.mpct<10) || (mgF==='healthy' && r.mpct>=20);
     return ms && mp && mm;
   });
 
-  document.getElementById('bill-count').textContent = `${rows.length} transactions`;
+  document.getElementById('bill-count').textContent = `${rows.length} challans`;
   document.getElementById('bill-tbody').innerHTML = rows.map(r=>{
-    const method = (r['Payment Method']||'').trim();
-    const badge = r.payStatus==='paid' ? `<span class="badge b-ok">Paid</span>`
-      : r.payStatus==='part' ? `<span class="badge b-low">Partial</span>`
-      : `<span class="badge b-zero">Due</span>`;
-    const unitPrice = n(r['Actual Selling Price (per unit incl GST)']);
-    return `<tr>
-      <td>${esc(r['Date']||'—')}</td>
-      <td><span class="sku">${esc(r['Challan Number']||'—')}</span></td>
-      <td><div class="nm">${esc(r['Client Name']||'—')}</div><div class="ds">${esc(r['Client Phone Number']||'')}</div></td>
-      <td><div class="nm" style="font-size:12px">${esc((r['Item Name']||'').substring(0,40))}</div><span class="sku">${esc(r['SKU']||'')}</span></td>
-      <td>${esc(r['Godown']||'—')}</td>
-      <td style="text-align:center;font-weight:600">${n(r['Qty Sold'])||'—'}</td>
-      <td style="text-align:right">${unitPrice?fmt(unitPrice):'—'}</td>
-      <td style="text-align:right;font-weight:600">${fmt(r.totalSale)}</td>
-      <td style="text-align:right;color:var(--sage)">${r.paid?fmt(r.paid):'—'}</td>
+    const badge = r.status==='Paid'    ? `<span class="badge b-ok">Paid</span>`
+                : r.status==='Partial' ? `<span class="badge b-low">Partial</span>`
+                : r.status==='Unpaid'  ? `<span class="badge b-zero">Unpaid</span>`
+                : `<span style="color:var(--ink-mute);font-size:12px">${esc(r.status)}</span>`;
+    const lateNote = r.late>0 ? `<div class="ds">incl ${fmt(r.late)} late</div>` : '';
+    return `<tr onclick="showChallan(${JSON.stringify(r.ch).replace(/"/g,'&quot;')})" style="cursor:pointer">
+      <td>${esc(r.date||'—')}</td>
+      <td><span class="sku">${esc(r.ch)}</span></td>
+      <td><div class="nm">${esc(r.client)}</div><div class="ds">${esc(r.phone)}</div></td>
+      <td style="text-align:center">${r.items||'—'}</td>
+      <td style="text-align:right;font-weight:600">${fmt(r.sales)}</td>
+      <td style="text-align:right;color:var(--sage)">${r.coll?fmt(r.coll):'—'}${lateNote}</td>
       <td style="text-align:right;color:var(--maroon);font-weight:600">${r.due?fmt(r.due):'—'}</td>
-      <td style="font-size:12px">${esc(method||'—')}</td>
+      <td style="text-align:right;font-weight:600;color:${r.pl>=0?'var(--sage)':'var(--maroon)'}">${r.pl?fmt(r.pl):'—'}</td>
+      <td style="text-align:center;font-weight:600;color:${r.mpct<0?'var(--maroon)':r.mpct<10?'var(--amber)':'var(--sage)'}">${r.mpct?r.mpct.toFixed(1)+'%':'—'}</td>
+      <td style="font-size:12px">${esc(r.payDate||'—')}</td>
       <td>${badge}</td>
     </tr>`;
-  }).join('') || emptyRow(12,'📭','No transactions match');
+  }).join('') || emptyRow(11,'📭','No challans match');
+}
+
+// Line-item drill-down, joined from Stock Reductions
+function showChallan(ch){
+  const det = document.getElementById('bill-detail');
+  if(_openChallan === ch){ _openChallan = null; det.innerHTML=''; return; }
+  _openChallan = ch;
+  const row = _billRows.find(r=>r.ch===ch);
+  const lines = row ? row.lines : [];
+  det.innerHTML = `<div class="tbl-wrap">
+    <div style="padding:14px 18px;background:var(--bg);border-bottom:1px solid var(--border);font-weight:600;font-size:13px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px">
+      <span>Challan ${esc(ch)} — ${esc(row?row.client:'')} · ${lines.length} item${lines.length===1?'':'s'}</span>
+      <span class="chip-clear" onclick="showChallan(${JSON.stringify(ch).replace(/"/g,'&quot;')})">Close</span>
+    </div>
+    <div style="overflow-x:auto"><table>
+      <thead><tr><th>Item</th><th>SKU</th><th>Category</th><th>Godown</th><th>Qty</th><th>Unit Price</th><th>Line Total</th><th>Profit / Loss</th><th>Margin</th></tr></thead>
+      <tbody>${lines.map(l=>{
+        const q=n(l['Qty Sold']), tot=n(l['Actual Total Selling Price incl GST']);
+        const pl=n(l['Profit/Loss in Rs']), gm=n(l['Gross Margin']);
+        return `<tr>
+          <td><div class="nm" style="font-size:12px">${esc((l['Item Name']||l['Item']||'').substring(0,44))}</div></td>
+          <td><span class="sku">${esc(l['SKU']||'')}</span></td>
+          <td style="font-size:12px">${esc(catOfSku((l['SKU']||'').trim()))}</td>
+          <td style="font-size:12px">${esc(l['Godown']||'—')}</td>
+          <td style="text-align:center;font-weight:600">${q||'—'}</td>
+          <td style="text-align:right">${fmt(n(l['ActualSelling Price (IF Adjusted at the time of Sales)'])||n(l['Our Selling Price (per unit incl GST)']))}</td>
+          <td style="text-align:right;font-weight:600">${fmt(tot)}</td>
+          <td style="text-align:right;color:${pl>=0?'var(--sage)':'var(--maroon)'}">${pl?fmt(pl):'—'}</td>
+          <td style="text-align:center">${gm?gm.toFixed(1)+'%':'—'}</td>
+        </tr>`;
+      }).join('') || emptyRow(9,'📭','No line items found in Stock Reductions for this challan')}</tbody>
+    </table></div>
+  </div>`;
+  if (det.scrollIntoView) det.scrollIntoView({behavior:'smooth', block:'nearest'});
 }
 
 // ── TAB 3: MONEY IN STOCK ─────────────────────────────────────────────────────
@@ -1249,41 +1350,49 @@ function renderMoney() {
 
 function renderMoneySnapshot(){
   const rowsAll = fINV();
-  let totalCost=0, totalRev=0;
+  let cost=0, rev=0, units=0;
   rowsAll.forEach(r => {
     const bal = Math.max(0,totBal(r));
-    totalCost += bal * n(r['Per Unit Purchase Rate']||r['Purchase Rate']||0);
-    totalRev  += bal * n(r['Sale Rate (incl GST)']||0);
+    units += bal;
+    cost  += bal * n(r['Purchase Price incl GST']);
+    rev   += bal * n(r['Sales Price including GST']);
   });
-  const margin = totalRev - totalCost;
+  const margin = rev - cost;
+  const costEx = exGST(cost), revEx = exGST(rev);
 
-  document.getElementById('money-sub').innerHTML = `&nbsp;·&nbsp; live valuation`;
+  document.getElementById('money-sub').innerHTML =
+    `&nbsp;·&nbsp; live valuation · ${rowsAll.length} SKUs · ${units.toLocaleString('en-IN')} units`;
+
   document.getElementById('money-kpis').innerHTML = kpiHTML([
-    {cls:'terra', icon:'💸', label:'Capital Locked', value:fmt(totalCost), sub:'Purchase value in stock'},
-    {cls:'sage',  icon:'📈', label:'Revenue Potential', value:fmt(totalRev), sub:'If all stock sold today'},
-    {cls:'gold',  icon:'✨', label:'Gross Margin Potential', value:fmt(margin), sub:totalRev>0?`${Math.round(margin/totalRev*100)}% margin`:'—'},
+    {cls:'terra', icon:'💸', label:'Capital Locked (incl GST)', value:fmt(cost), sub:`${fmt(costEx)} + ${fmt(gstOf(cost))} GST`},
+    {cls:'sage',  icon:'📈', label:'Revenue Potential (incl GST)', value:fmt(rev), sub:`${fmt(revEx)} + ${fmt(gstOf(rev))} GST`},
+    {cls:'gold',  icon:'✨', label:'Gross Margin Potential', value:fmt(margin), sub:rev>0?`${(margin/rev*100).toFixed(1)}% of sale value`:'—'},
+    {cls:'slate', icon:'🧾', label:'GST in Purchase', value:fmt(gstOf(cost)), sub:`Input credit @ ${GST_RATE*100}%`},
+    {cls:'amber', icon:'🧾', label:'GST in Sales', value:fmt(gstOf(rev)), sub:`Payable if all sold @ ${GST_RATE*100}%`},
+    {cls:'maroon',icon:'⚖️', label:'Net GST Exposure', value:fmt(gstOf(rev)-gstOf(cost)), sub:'Sales GST less input credit'},
   ], true);
 
-  const catMap={};
+  // Value by category and by godown, both on purchase value
+  const catMap={}, gdMap={};
   rowsAll.forEach(r=>{
-    const v=Math.max(0,totBal(r))*n(r['Per Unit Purchase Rate']||r['Purchase Rate']||0);
-    catMap[catOfRow(r)]=(catMap[catOfRow(r)]||0)+v;
+    const bal = Math.max(0,totBal(r)), pp = n(r['Purchase Price incl GST']);
+    catMap[catOfRow(r)] = (catMap[catOfRow(r)]||0) + bal*pp;
+    GD_COLS.forEach((g,gi)=>{ gdMap[GODOWNS[gi]] = (gdMap[GODOWNS[gi]]||0) + Math.max(0,gdBal(r,gi))*pp; });
   });
   document.getElementById('money-cat').innerHTML = barsHTML(catMap, 'No stock value');
-
-  const gdMap={};
-  GODOWNS.forEach((g,gi)=>{ let v=0; rowsAll.forEach(r=>{ v+=Math.max(0,gdBal(r,gi))*n(r['Per Unit Purchase Rate']||r['Purchase Rate']||0); }); gdMap[g]=v; });
-  document.getElementById('money-gd').innerHTML = barsHTML(gdMap, 'No stock value');
+  document.getElementById('money-gd').innerHTML  = barsHTML(gdMap,  'No stock value');
 
   document.getElementById('money-thead').innerHTML = `<tr>
     <th onclick="srt('money-table',0)">Item</th>
     <th onclick="srt('money-table',1)">SKU</th>
-    <th onclick="srt('money-table',2)">Units</th>
-    <th onclick="srt('money-table',3)">Purchase Rate</th>
-    <th onclick="srt('money-table',4)">Sale Rate</th>
-    <th onclick="srt('money-table',5)">Stock Cost</th>
-    <th onclick="srt('money-table',6)">Revenue Potential</th>
-    <th onclick="srt('money-table',7)">Margin</th>
+    <th onclick="srt('money-table',2)">Category</th>
+    <th onclick="srt('money-table',3)">Units</th>
+    <th onclick="srt('money-table',4)">Purchase Price</th>
+    <th onclick="srt('money-table',5)">Sales Price</th>
+    <th onclick="srt('money-table',6)">Profit / Loss</th>
+    <th onclick="srt('money-table',7)">Margin %</th>
+    <th onclick="srt('money-table',8)">Stock Cost</th>
+    <th onclick="srt('money-table',9)">Revenue Potential</th>
   </tr>`;
   renderMoneyTable();
 }
@@ -1360,31 +1469,31 @@ function renderMoneyTable() {
 
   const rows=fINV().filter(r=>{
     const info=itemInfo(r);
-    return (!search||info.name.toLowerCase().includes(search)||(r['SKU']||'').toLowerCase().includes(search))
+    return (!search||info.name.toLowerCase().includes(search)||(r['ITEM NAME']||'').toLowerCase().includes(search)||(r['SKU']||'').toLowerCase().includes(search))
       && Math.max(0,totBal(r))>0;
-  }).sort((a,b)=>{
-    const va=Math.max(0,totBal(a))*n(a['Per Unit Purchase Rate']||a['Purchase Rate']||0);
-    const vb=Math.max(0,totBal(b))*n(b['Per Unit Purchase Rate']||b['Purchase Rate']||0);
-    return vb-va;
-  });
+  }).sort((a,b)=> Math.max(0,totBal(b))*n(b['Purchase Price incl GST']) - Math.max(0,totBal(a))*n(a['Purchase Price incl GST']));
+
   document.getElementById('money-count').textContent=`${rows.length} items`;
   document.getElementById('money-tbody').innerHTML=rows.map(r=>{
     const info=itemInfo(r);
     const bal=Math.max(0,totBal(r));
-    const pr=n(r['Per Unit Purchase Rate']||r['Purchase Rate']||0);
-    const sr=n(r['Sale Rate (incl GST)']||0);
-    const mgn=pr&&sr?Math.round((sr-pr)/sr*100):null;
+    const pp=n(r['Purchase Price incl GST']);        // col K
+    const sp=n(r['Sales Price including GST']);      // col L
+    const pl=n(r['Margin in INR']);                  // col M
+    const mp=n(r['Margin in %']);                    // col N
     return `<tr>
-      <td><div class="nm">${esc(info.name)}</div><div class="ds">${esc(info.desc)}</div></td>
+      <td><div class="nm">${esc(info.name)}</div><div class="ds">${esc(info.desc.substring(0,46))}</div></td>
       <td><span class="sku">${esc(r['SKU']||'')}</span></td>
-      <td style="text-align:center">${bal}</td>
-      <td style="text-align:right">${pr?fmt(pr):'—'}</td>
-      <td style="text-align:right">${sr?fmt(sr):'—'}</td>
-      <td style="text-align:right;font-weight:600">${fmt(bal*pr)}</td>
-      <td style="text-align:right;color:var(--sage);font-weight:600">${fmt(bal*sr)}</td>
-      <td style="text-align:center">${mgn!==null?`<span style="color:var(--sage);font-weight:600">${mgn}%</span>`:'—'}</td>
+      <td style="font-size:12px">${esc(catOfRow(r))}</td>
+      <td style="text-align:center">${bal.toLocaleString('en-IN')}</td>
+      <td style="text-align:right">${pp?fmt(pp):'—'}</td>
+      <td style="text-align:right">${sp?fmt(sp):'—'}</td>
+      <td style="text-align:right;font-weight:600;color:${pl>=0?'var(--sage)':'var(--maroon)'}">${pl?fmt(pl):'—'}</td>
+      <td style="text-align:center;font-weight:600;color:${mp>=0?'var(--sage)':'var(--maroon)'}">${mp?mp.toFixed(1)+'%':'—'}</td>
+      <td style="text-align:right;font-weight:600">${fmt(bal*pp)}</td>
+      <td style="text-align:right;color:var(--sage);font-weight:600">${fmt(bal*sp)}</td>
     </tr>`;
-  }).join('') || emptyRow(8,'📭','No items');
+  }).join('') || emptyRow(10,'📭','No items');
 }
 
 function filterMoneyTable() { renderMoneyTable(); }
@@ -1398,15 +1507,20 @@ function renderPayouts() {
     delivDate:   r['Delivery Date']||'',
     dueDate:     r['Payment Due Date']||'',
     paidOn:      r['Paid on - Date']||'',
-    item:        r['Item']||r['Item Name']||'',
+    item:        addItemName(r),
+    invoiceNo:   (r['Invoice Number']||'').trim(),
+    goods:       addGoodsCost(r),
+    freight:     addFreight(r),
     sku:         r['SKU']||'',
-    supplier:    (r['Seller Details']||r['Coming From']||'').trim(),
+    supplier:    (r['Seller Details']||'').trim(),
+    from:        (r['Coming From']||'').trim(),
     godown:      r['Godown']||'',
     qty:         n(r['Qty Added']),
     cost:        addCost(r),
     paid:        addPaid(r),
     balance:     addBalance(r),
     status:      addStatus(r),
+    mismatch:    addBalanceMismatch(r),
     notes:       r['Notes / PO Reference No.']||'',
   })).sort((a,b)=>(toISO(b.delivDate||b.invoiceDate||b.orderDate)||'').localeCompare(toISO(a.delivDate||a.invoiceDate||a.orderDate)||''));
 
@@ -1417,17 +1531,20 @@ function renderPayouts() {
   const noCost     = rows.filter(r=>r.cost<=0).length;
 
   // Undated purchases silently vanish once a date filter is on — say so.
-  const undated = ADDITIONS.filter(r=>!hasAddDate(r) && matchItem(r['SKU'], r['Item Name']||r['Item']) && matchCat(catOfSku(r['SKU']))).length;
+  const undated = ADDITIONS.filter(r=>!hasAddDate(r) && matchItem(r['SKU'], addItemName(r)) && matchCat(catOfSku(r['SKU']))).length;
   const note = hasRange() && undated
     ? ` · <span style="color:var(--maroon)">${undated} undated ${undated===1?'entry':'entries'} hidden</span>`
     : '';
   document.getElementById('payout-sub').innerHTML = `&nbsp;·&nbsp; ${esc(rangeLabel())} · ${rows.length} entries${note}`;
 
+  const totalFreight = rows.reduce((s,r)=>s+r.freight,0);
   const kpiEl = document.getElementById('payout-kpis');
   if (kpiEl) kpiEl.innerHTML=[
-    {label:'Total Purchased', value:fmt(totalCost),  color:'var(--terra)'},
+    {label:'Total Purchased (incl GST)', value:fmt(totalCost), color:'var(--terra)'},
     {label:'Paid',            value:fmt(totalPaid),  color:'var(--sage)'},
     {label:'Outstanding',     value:fmt(totalBal),   color:'var(--maroon)'},
+    {label:'GST in Purchase', value:fmt(gstOf(totalCost)), color:'var(--slate)'},
+    {label:'Freight',         value:fmt(totalFreight), color:'var(--amber)'},
     {label:'Units Received',  value:totalUnits.toLocaleString('en-IN'), color:'var(--ink)'},
     {label:'Entries',         value:rows.length,     color:'var(--ink)'},
     {label:'No Cost Yet',     value:noCost,          color:noCost?'var(--amber)':'var(--ink-mute)'},
@@ -1443,18 +1560,26 @@ function renderPayouts() {
 
   document.getElementById('payout-thead').innerHTML = `<tr>
     <th onclick="srt('payout-table',0)">Order / Invoice</th>
-    <th onclick="srt('payout-table',1)">Item</th>
-    <th onclick="srt('payout-table',2)">SKU</th>
-    <th onclick="srt('payout-table',3)">Supplier</th>
-    <th onclick="srt('payout-table',4)">Godown</th>
-    <th onclick="srt('payout-table',5)">Delivered</th>
-    <th onclick="srt('payout-table',6)">Qty</th>
-    <th onclick="srt('payout-table',7)">Total Cost</th>
-    <th onclick="srt('payout-table',8)">Paid</th>
-    <th onclick="srt('payout-table',9)">Balance</th>
-    <th onclick="srt('payout-table',10)">Payment Due</th>
-    <th onclick="srt('payout-table',11)">Status</th>
+    <th onclick="srt('payout-table',1)">Invoice No</th>
+    <th onclick="srt('payout-table',2)">Item</th>
+    <th onclick="srt('payout-table',3)">SKU</th>
+    <th onclick="srt('payout-table',4)">Supplier</th>
+    <th onclick="srt('payout-table',5)">From</th>
+    <th onclick="srt('payout-table',6)">Godown</th>
+    <th onclick="srt('payout-table',7)">Delivered</th>
+    <th onclick="srt('payout-table',8)">Qty</th>
+    <th onclick="srt('payout-table',9)">Total Cost</th>
+    <th onclick="srt('payout-table',10)">Paid</th>
+    <th onclick="srt('payout-table',11)">Balance</th>
+    <th onclick="srt('payout-table',12)">Payment Due</th>
+    <th onclick="srt('payout-table',13)">Status</th>
   </tr>`;
+
+  const mism = rows.filter(r=>r.mismatch).length;
+  if(mism){
+    const msg = `Payouts: ${mism} purchase ${mism===1?'entry has':'entries have'} a cost recorded but a Balance Payment that doesn't match cost minus paid. Shown as "Check" — the sheet's own balance is used, so these may understate what's owed.`;
+    if(!loadNotes.includes(msg)){ loadNotes.push(msg); renderLoadNotes(); }
+  }
 
   window._payoutRows = rows;
   filterPayoutTable();
@@ -1466,7 +1591,8 @@ function filterPayoutTable() {
   const payF   = document.getElementById('payout-pay-filter')?.value||'';
   const rows   = (window._payoutRows||[]).filter(r=>
     (!search||r.item.toLowerCase().includes(search)||(r.sku||'').toLowerCase().includes(search)
-      ||(r.supplier||'').toLowerCase().includes(search)||(r.notes||'').toLowerCase().includes(search))&&
+      ||(r.supplier||'').toLowerCase().includes(search)||(r.notes||'').toLowerCase().includes(search)
+      ||(r.invoiceNo||'').toLowerCase().includes(search))&&
     (!gdF||r.godown===gdF)&&
     (!payF||r.status===payF)
   );
@@ -1480,6 +1606,7 @@ function filterPayoutTable() {
     const badge = r.status==='paid'   ? `<span class="badge b-ok">Paid</span>`
                 : r.status==='part'   ? `<span class="badge b-low">Partial</span>`
                 : r.status==='unpaid' ? `<span class="badge b-zero">Unpaid</span>`
+                : r.status==='check'  ? `<span class="badge b-low" title="Cost minus paid does not equal the sheet's Balance Payment">Check</span>`
                 : `<span style="color:var(--ink-mute);font-size:12px">Not costed</span>`;
     const dd = parseDate(r.dueDate);
     const od = dd ? daysBetween(dd, now) : null;
@@ -1488,9 +1615,11 @@ function filterPayoutTable() {
       : esc(r.dueDate);
     return `<tr>
       <td><div class="nm" style="font-size:12px">${esc(r.orderDate||'—')}</div><div class="ds">Inv: ${esc(r.invoiceDate||'—')}</div></td>
+      <td style="font-size:12px"><span class="sku">${esc(r.invoiceNo||'—')}</span></td>
       <td><div class="nm" style="font-size:12px">${esc(r.item.substring(0,45))}</div></td>
       <td><span class="sku">${esc(r.sku)}</span></td>
       <td style="font-size:12px">${esc(r.supplier||'—')}</td>
+      <td style="font-size:12px">${esc(r.from||'—')}</td>
       <td>${esc(r.godown||'—')}</td>
       <td style="font-size:12px">${esc(r.delivDate||'—')}</td>
       <td style="text-align:center;font-weight:600">${r.qty}</td>
@@ -1500,7 +1629,7 @@ function filterPayoutTable() {
       <td style="font-size:12px">${dueStr}</td>
       <td>${badge}</td>
     </tr>`;
-  }).join('')||emptyRow(12,'🧾','No purchases match');
+  }).join('')||emptyRow(14,'🧾','No purchases match');
 }
 
 // ── TAB 5: CATEGORIES ─────────────────────────────────────────────────────────
@@ -1512,10 +1641,11 @@ function renderCategoriesSnapshot(){
   const catMap={};
   fINV().forEach(r=>{
     const cat=catOfRow(r);
-    if (!catMap[cat]) catMap[cat]={skus:0,units:0,cost:0};
+    if (!catMap[cat]) catMap[cat]={skus:0,units:0,cost:0,rev:0};
     catMap[cat].skus++;
     catMap[cat].units+=Math.max(0,totBal(r));
-    catMap[cat].cost+=Math.max(0,totBal(r))*n(r['Per Unit Purchase Rate']||r['Purchase Rate']||0);
+    catMap[cat].cost+=Math.max(0,totBal(r))*n(r['Purchase Price incl GST']);
+    catMap[cat].rev +=Math.max(0,totBal(r))*n(r['Sales Price including GST']);
   });
   const entries=Object.entries(catMap).sort((a,b)=>b[1].units-a[1].units);
   const maxU=entries[0]?.[1].units||1;
@@ -1530,7 +1660,8 @@ function renderCategoriesSnapshot(){
       <div class="cat-stats">
         <div class="cat-stat"><strong>${data.skus}</strong> SKUs</div>
         <div class="cat-stat"><strong>${data.units.toLocaleString('en-IN')}</strong> Units</div>
-        <div class="cat-stat"><strong>${fmt(data.cost)}</strong> Value</div>
+        <div class="cat-stat"><strong>${fmt(data.cost)}</strong> Cost</div>
+        <div class="cat-stat"><strong style="color:var(--sage)">${fmt(data.rev-data.cost)}</strong> Margin</div>
       </div>
     </div>`).join('') || `<div class="empty"><div class="ei">📭</div><p>No categories match the current filters</p></div>`;
   renderCatDetail();
@@ -1643,7 +1774,7 @@ function renderMovement() {
   const combined = [
     ...adds.map(r=>({
       date: addDateOf(r), type:'IN',
-      item: r['Item']||r['Item Name']||'', sku:r['SKU']||'', godown:r['Godown']||'',
+      item: addItemName(r), sku:r['SKU']||'', godown:r['Godown']||'',
       qty: n(r['Qty Added']), value: addCost(r),
     })),
     ...sales.map(r=>({
@@ -1672,7 +1803,7 @@ function renderMovement() {
 function renderReorder() {
   const scope = fINV();
   const oos  = scope.filter(r=>totBal(r)<=0);
-  const low  = scope.filter(r=>{const b=totBal(r),rl=n(r['Reorder Level']);return b>0&&(rl>0?b<=rl:b<=5);});
+  const low  = scope.filter(r=>{const b=totBal(r),rl=reorderLvl((r['SKU']||'').trim());return b>0&&(rl>0?b<=rl:b<=5);});
   const cnt  = oos.length+low.length;
   const badge=document.getElementById('reorder-badge');
   badge.textContent=cnt; badge.style.display=cnt>0?'inline-block':'none';
@@ -1706,7 +1837,7 @@ function renderReorder() {
         <td><div class="nm">${esc(info.name)}</div><div class="ds">${esc(info.desc)}</div></td>
         <td><span class="sku">${esc(r['SKU']||'')}</span></td>
         <td>${esc(catOfRow(r))}</td>
-        <td>${n(r['Reorder Level'])||'—'}</td>
+        <td>${reorderLvl((r['SKU']||'').trim())||'—'}</td>
         ${withVelocity?`<td style="text-align:center;font-weight:600;color:var(--terra)">${s||'—'}</td>`:''}
         <td><span class="urgency crit">Out of Stock</span></td>
       </tr>`;
@@ -1716,7 +1847,7 @@ function renderReorder() {
   document.getElementById('ro-tbody').innerHTML=low
     .sort((a,b)=>totBal(a)-totBal(b))
     .map(r=>{
-      const info=itemInfo(r), bal=totBal(r), rl=n(r['Reorder Level']);
+      const info=itemInfo(r), bal=totBal(r), rl=reorderLvl((r['SKU']||'').trim());
       const s=sold[r['SKU']]||0;
       const perDay = s/days;
       const cover = perDay>0 ? Math.floor(bal/perDay) : null;
