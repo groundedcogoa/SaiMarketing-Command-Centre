@@ -360,8 +360,41 @@
         </div>
       </div>
 
+      <div class="tbl-wrap" style="margin-bottom:18px">
+        <div class="tbl-toolbar">
+          <div style="font-weight:600;font-size:13px">👥 Sales by Client</div>
+          <input class="search" type="text" placeholder="Search client…" id="client-search" oninput="renderClientTable()">
+          <select class="fsel" id="client-sort" onchange="renderClientTable()">
+            <option value="sales">Sort: Total Sales</option>
+            <option value="due">Sort: Outstanding</option>
+            <option value="pl">Sort: Profit</option>
+            <option value="margin">Sort: Margin %</option>
+            <option value="challans">Sort: Challans</option>
+            <option value="name">Sort: Name</option>
+          </select>
+          <div class="res-count" id="client-count"></div>
+        </div>
+        <div style="overflow-x:auto">
+          <table id="client-table">
+            <thead><tr>
+              <th>Client</th>
+              <th>Challans</th>
+              <th>Total Sales</th>
+              <th>Collected</th>
+              <th>Outstanding</th>
+              <th>Profit / Loss</th>
+              <th>Margin %</th>
+              <th>Oldest Due</th>
+              <th>Status Mix</th>
+            </tr></thead>
+            <tbody id="client-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
       <div class="tbl-wrap">
         <div class="tbl-toolbar">
+          <div style="font-weight:600;font-size:13px" id="bill-table-title">🧾 All Challans</div>
           <input class="search" type="text" placeholder="Search challan, client…" id="bill-search" oninput="filterBillingTable()">
           <select class="fsel" id="bill-pay-filter" onchange="filterBillingTable()">
             <option value="">All Payment Statuses</option>
@@ -544,6 +577,7 @@ let selectedCat = null;
 let sortState = {};
 let _billRows = [];
 let _openChallan = null;
+let _clientFilter = null;   // scopes the challan list to one client
 
 // ── FILTER STATE ──────────────────────────────────────────────────────────────
 let SKUMAP = {};                 // SKU -> {name, cat, purch, sale, margin, marginPct, row}
@@ -1370,6 +1404,83 @@ function renderBilling() {
     </tr>`;
   }).join('') || emptyRow(7,'✅','Nothing outstanding in this range');
 
+  renderClientTable();
+  filterBillingTable();
+}
+
+// Roll the challan rows up by client. Built from _billRows, so it always reflects
+// whatever the global date / product / category filters currently allow through.
+function renderClientTable(){
+  const search = (document.getElementById('client-search').value||'').toLowerCase();
+  const sortBy = document.getElementById('client-sort').value;
+
+  const m = {};
+  _billRows.forEach(r=>{
+    const k = r.client || '—';
+    if(!m[k]) m[k] = {client:k, phone:r.phone, challans:0, sales:0, coll:0, due:0, credit:0,
+                      pl:0, paidN:0, partN:0, unpaidN:0, oldest:null};
+    const o = m[k];
+    o.challans++; o.sales += r.sales; o.coll += r.coll; o.pl += r.pl;
+    o.due    += Math.max(0,  r.due);
+    o.credit += Math.max(0, -r.due);
+    if(!o.phone && r.phone) o.phone = r.phone;
+    if(r.status==='Paid') o.paidN++; else if(r.status==='Partial') o.partN++; else if(r.status==='Unpaid') o.unpaidN++;
+    if(r.due > 0 && r.age !== null && (o.oldest === null || r.age > o.oldest)) o.oldest = r.age;
+  });
+
+  let rows = Object.values(m).filter(o=>!search || o.client.toLowerCase().includes(search));
+  const cmp = {
+    sales:    (a,b)=>b.sales-a.sales,
+    due:      (a,b)=>b.due-a.due,
+    pl:       (a,b)=>b.pl-a.pl,
+    margin:   (a,b)=>(b.sales?b.pl/b.sales:0)-(a.sales?a.pl/a.sales:0),
+    challans: (a,b)=>b.challans-a.challans,
+    name:     (a,b)=>a.client.localeCompare(b.client),
+  }[sortBy] || ((a,b)=>b.sales-a.sales);
+  rows.sort(cmp);
+
+  const tSales = rows.reduce((s,o)=>s+o.sales,0);
+  const tDue   = rows.reduce((s,o)=>s+o.due,0);
+  document.getElementById('client-count').innerHTML =
+    `${rows.length} client${rows.length===1?'':'s'} · ${fmt(tSales)}`
+    + (tDue ? ` · <span style="color:var(--maroon)">${fmt(tDue)} due</span>` : '');
+
+  document.getElementById('client-tbody').innerHTML = rows.map(o=>{
+    const mpct = o.sales ? o.pl/o.sales*100 : 0;
+    const age  = o.oldest === null ? '—'
+      : o.oldest > 90 ? `<span style="color:var(--maroon);font-weight:700">${o.oldest}d</span>`
+      : o.oldest > 45 ? `<span style="color:var(--terra);font-weight:600">${o.oldest}d</span>`
+      : `<span style="color:var(--amber)">${o.oldest}d</span>`;
+    const mix = [
+      o.paidN   ? `<span class="badge b-ok">${o.paidN}</span>` : '',
+      o.partN   ? `<span class="badge b-low">${o.partN}</span>` : '',
+      o.unpaidN ? `<span class="badge b-zero">${o.unpaidN}</span>` : '',
+    ].join(' ');
+    const sel = _clientFilter === o.client;
+    return `<tr onclick="selectClient(${JSON.stringify(o.client).replace(/"/g,'&quot;')})"
+                style="cursor:pointer${sel?';background:var(--sage-l)':''}">
+      <td><div class="nm">${esc(o.client)}</div><div class="ds">${esc(o.phone||'')}</div></td>
+      <td style="text-align:center;font-weight:600">${o.challans}</td>
+      <td style="text-align:right;font-weight:600">${fmt(o.sales)}</td>
+      <td style="text-align:right;color:var(--sage)">${o.coll?fmt(o.coll):'—'}</td>
+      <td style="text-align:right;font-weight:600;color:var(--maroon)">${
+        o.due ? fmt(o.due) + (o.credit?`<div class="ds" style="color:var(--sage)">${fmt(o.credit)} credit</div>`:'')
+              : (o.credit ? `<span style="color:var(--sage);font-weight:500">${fmt(o.credit)} credit</span>` : '—')
+      }</td>
+      <td style="text-align:right;font-weight:600;color:${o.pl>=0?'var(--sage)':'var(--maroon)'}">${o.pl?fmt(o.pl):'—'}</td>
+      <td style="text-align:center;font-weight:600;color:${mpct<0?'var(--maroon)':mpct<10?'var(--amber)':'var(--sage)'}">${o.sales?mpct.toFixed(1)+'%':'—'}</td>
+      <td style="text-align:center">${age}</td>
+      <td style="white-space:nowrap">${mix||'—'}</td>
+    </tr>`;
+  }).join('') || emptyRow(9,'📭','No clients match');
+}
+
+// Clicking a client scopes the challan list below to that client
+function selectClient(name){
+  _clientFilter = (_clientFilter === name) ? null : name;
+  _openChallan = null;
+  document.getElementById('bill-detail').innerHTML = '';
+  renderClientTable();
   filterBillingTable();
 }
 
@@ -1379,11 +1490,18 @@ function filterBillingTable() {
   const mgF    = document.getElementById('bill-margin-filter').value;
 
   const rows = _billRows.filter(r => {
+    const mc = !_clientFilter || r.client === _clientFilter;
     const ms = !search || r.client.toLowerCase().includes(search) || r.ch.toLowerCase().includes(search);
     const mp = !stF || r.status === stF;
+    if(!mc) return false;
     const mm = !mgF || (mgF==='loss' && r.pl<0) || (mgF==='thin' && r.mpct>0 && r.mpct<10) || (mgF==='healthy' && r.mpct>=20);
     return ms && mp && mm;
   });
+
+  const title = document.getElementById('bill-table-title');
+  if(title) title.innerHTML = _clientFilter
+    ? `🧾 Challans — ${esc(_clientFilter)} <span class="chip-clear" style="margin-left:8px" onclick="event.stopPropagation();selectClient(${JSON.stringify(_clientFilter).replace(/"/g,'&quot;')})">show all</span>`
+    : '🧾 All Challans';
 
   const sSales = rows.reduce((s,r)=>s+r.sales,0);
   const owed   = rows.reduce((s,r)=>s+Math.max(0,r.due),0);
