@@ -722,11 +722,11 @@ function fPAY(){
   return PAYMENTS.filter(r => {
     if(!inRange(r['Challan Date'])) return false;
     if(FILTERS.cat){
-      const set = CHALLAN_CAT[(r['Challan']||'').trim()];
+      const set = CHALLAN_CAT[challanOf(r)];
       if(!set || !set.has(FILTERS.cat)) return false;
     }
     if(FILTERS.sku || FILTERS.q){
-      const lines = challanLines((r['Challan']||'').trim());
+      const lines = challanLines(challanOf(r));
       if(!lines.some(l => matchItem((l['SKU']||'').trim(), l['Item Name']))) return false;
     }
     return true;
@@ -890,20 +890,31 @@ function parseCSV(text, headerRowIndex = 0) {
   if (records.length <= headerRowIndex) return { headers:[], rows:[] };
 
   const headers = records[headerRowIndex].map(h => (h||'').trim());
+  const width = Math.max(headers.length, ...records.map(r => r.length));
   const seen = {};
-  const keys = headers.map(h => {
-    if (!h) return '';
-    if (seen[h]) { seen[h]++; return `${h} (${seen[h]})`; }   // keep duplicate headers distinct
-    seen[h] = 1; return h;
-  });
+  const keys = [];
+  for (let i = 0; i < width; i++) {
+    const h = headers[i] || '';
+    if (!h) { keys.push(''); continue; }
+    if (seen[h]) { seen[h]++; keys.push(`${h} (${seen[h]})`); }   // keep duplicates distinct
+    else { seen[h] = 1; keys.push(h); }
+  }
 
+  // Every column is also reachable as "Column A/B/C…". A header cell that gets
+  // cleared or renamed in the sheet then can't silently blank an entire tab.
   const rows = records.slice(headerRowIndex + 1).map(cols => {
     const obj = {};
-    keys.forEach((k, i) => { if (k) obj[k] = (cols[i]||'').trim(); });
+    for (let i = 0; i < width; i++) {
+      const v = (cols[i]||'').trim();
+      obj['Column ' + colLetter(i)] = v;
+      if (keys[i]) obj[keys[i]] = v;
+    }
     return obj;
-  }).filter(r => Object.values(r).some(v => v));
+  }).filter(r => keys.some((k,i) => k && r[k]) || Object.values(r).some(v => v));
   return { headers: keys, rows };
 }
+
+function colLetter(i){ let s=''; i+=1; while(i){ const r=(i-1)%26; s=String.fromCharCode(65+r)+s; i=(i-1-r)/26; } return s; }
 
 function csvRecords(text) {
   const out = [];
@@ -1001,10 +1012,46 @@ async function loadAll() {
     // ── Payment Tracker: one row per challan ────────────────────────────────
     // Row 13 of the sheet is a formula template ("Date"/"Challan Number" literals) — drop it.
     // "Kaushik" rows are dummy adjustment entries, excluded at source per Rutuja.
-    const payAll = payData.rows.filter(r => (r['Challan']||'').trim() && (r['Challan']||'').trim() !== 'Challan Number');
+    // Column B holds the challan number. Its header has gone missing before, so fall
+    // back to the column position rather than losing every row.
+    const hasChallanHeader = payData.headers.some(h => h==='Challan Number' || h==='Challan');
+    if (!hasChallanHeader) {
+      loadNotes.push('The Payment Tracker\'s challan-number column (B) has no header. '
+        + 'Reading it by position for now — put "Challan Number" back in cell B12 so this stays reliable.');
+    }
+    const payAll = payData.rows.filter(r => {
+      const ch = challanOf(r);
+      return ch && ch !== 'Challan Number' && ch !== '#REF!';
+    });
     PAYMENTS = payAll.filter(r => !isDummyChallan(r));
     const dropped = payAll.length - PAYMENTS.length;
     if (dropped) loadNotes.push(`${dropped} adjustment ${dropped===1?'entry':'entries'} marked "Kaushik" excluded from all payment figures.`);
+
+    const offBooks = PAYMENTS.filter(r => {
+      const s=n(r['Total Sales']), p=n(r['Total Paid']), l=n(r['Late payments']), b=n(r['Balance Due']);
+      return s>0 && Math.abs(s - p - l - b) > 1;
+    });
+    if (offBooks.length) {
+      const refs = offBooks.slice(0,3).map(challanOf).filter(Boolean).join(', ');
+      loadNotes.push(`${offBooks.length} challan${offBooks.length===1?" doesn't":"s don't"} balance: `
+        + `Total Sales minus Paid, Late payments and Balance Due should be zero`
+        + `${refs ? ' (' + refs + (offBooks.length>3 ? ' and more' : '') + ')' : ''}. `
+        + `Usually the Late payments figure has been added to Balance Due instead of subtracted.`);
+    }
+
+    // Gross Margin Per Order occasionally holds a rupee value formatted as a percent
+    const wildMargin = PAYMENTS.filter(r => Math.abs(n(r['Gross Margin Per Order'])) > 100).length;
+    if (wildMargin) {
+      loadNotes.push(`${wildMargin} challan${wildMargin===1?' has':'s have'} a Gross Margin above 100% — `
+        + `the per-order margin formula looks wrong on those rows. The blended margin above is `
+        + `calculated from Profit / Loss over Total Sales and is unaffected.`);
+    }
+
+    const refRows = payData.rows.filter(r => challanOf(r) === '#REF!'
+      || (r['Total Sales']||'') === '#REF!').length;
+    if (refRows) loadNotes.push(`${refRows} row${refRows===1?'':'s'} in the Payment Tracker `
+      + `${refRows===1?'contains a #REF! formula error and has':'contain #REF! formula errors and have'} been skipped. `
+      + `The sheet's own summary totals are showing #REF! too.`);
 
     ADDITIONS = addData.rows.filter(r => (r['SKU']||'').trim() && n(r['Qty Added']) > 0);
 
@@ -1077,9 +1124,9 @@ function renderAll() {
 const GD_COLS = ['SEBBY','RENE','AMEY','ANUPA','DORMA','GODWIN'];
 function gdBal(row, gi) { return n(row[GD_COLS[gi]]); }
 function totBal(row) { return n(row['TOTAL']); }
+function challanOf(r){ return (r['Challan Number'] || r['Challan'] || r['Column B'] || '').trim(); }
 function isDummyChallan(r){
-  const blob = ((r['Client Name']||'') + ' ' + (r['Challan']||'')).toLowerCase();
-  return blob.includes('kaushik');
+  return ((r['Client Name']||'') + ' ' + challanOf(r)).toLowerCase().includes('kaushik');
 }
 function sbadge(v) {
   if (v <= 0)  return `<span class="badge b-zero">0</span>`;
@@ -1248,7 +1295,7 @@ function renderStockTable() {
 function renderBilling() {
   const now = new Date();
   const rows = fPAY().map(r => {
-    const ch      = (r['Challan']||'').trim();
+    const ch      = challanOf(r);
     const sales   = n(r['Total Sales']);
     const paid    = n(r['Total Paid']);
     const late    = n(r['Late payments']);
